@@ -3,16 +3,30 @@ package main
 import (
 	"github.com/gordonklaus/portaudio"
 	"github.com/nsf/termbox-go"
+	"github.com/pelletier/go-toml"
 	ring "github.com/zfjagann/golang-ring"
 
+	// "bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
+	// "io/ioutil"
 	"log"
 	"os"
 	"sync"
 	"time"
 )
+
+// The frame size in samples/points.
+// 344 is 1/128 of a second at 44.1kHz
+// This affects the ticker schedule as well as the latency of input
+// processing. I.e. any changes to the mixer are audible on a per-frame
+// basis (unless we adpot a point-based ring buffer instead)
+// const FRAME_SIZE = 344
+// const FRAME_SIZE = 1378
+const FRAME_SIZE = 689
+
+const SAMPLE_RATE = 44100
 
 type Looper interface {
 	Start()
@@ -22,38 +36,10 @@ type Looper interface {
 type Loop struct {
 }
 
-// Loops a sample until stopped
-func LoopSample(audio *io.Reader, out *[]int32, stream *portaudio.Stream, sampleRate int) Loop {
-	loop := Loop{}
-
-	for {
-		full := *out
-		origAudio := *audio
-		log.Printf("len(full): %+v, len(*out): %+v\n", len(full), len(*out))
-		for remaining := sampleRate; remaining > 0; remaining -= len(*out) {
-			if len(*out) > remaining {
-				*out = (*out)[:remaining]
-			}
-			err := binary.Read(*audio, binary.BigEndian, *out)
-			if err == io.EOF {
-				log.Printf("io.EOF\n")
-				break
-			}
-			chk(err)
-			chk(stream.Write())
-		}
-
-		out = &full
-		audio = &origAudio
-	}
-
-	return loop
-}
-
 func GetOutSamples(audio *io.Reader, sampleRate int) []AudioFrame {
 	outSamples := make([]AudioFrame, 0)
-	for remaining := sampleRate; remaining > 0; remaining -= 8192 {
-		out := make(AudioFrame, 8192)
+	for remaining := sampleRate; remaining > 0; remaining -= FRAME_SIZE {
+		out := make(AudioFrame, FRAME_SIZE)
 		if len(out) > remaining {
 			out = out[:remaining]
 		}
@@ -241,7 +227,14 @@ func GetAudio(f *os.File) (io.Reader, int) {
 	return audio, int(c.NumSamples)
 }
 
-func getNextFrameChan(audioFrameBuffer *AudioRingBuffer) chan AudioFrame {
+type AudioPoint int32
+
+// "point" is an individual int32 in an audioFrame
+func getNextPointChan(audioPointBuffer *AudioPointRingBuffer) chan AudioPoint {
+	return make(chan AudioPoint)
+}
+
+func getNextFrameChan(audioFrameBuffer *AudioFrameRingBuffer) chan AudioFrame {
 	nextFrameChan := make(chan AudioFrame)
 	go func() {
 		for {
@@ -254,7 +247,7 @@ func getNextFrameChan(audioFrameBuffer *AudioRingBuffer) chan AudioFrame {
 	return nextFrameChan
 }
 
-func playAudioFrame(audioFrameBuffer *AudioRingBuffer, out *[]int32, stream *portaudio.Stream, nextFrameChan *chan AudioFrame) {
+func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int32, stream *portaudio.Stream, nextFrameChan *chan AudioFrame) {
 	log.Println("Getting next frame...")
 	mixedAudio := <-*nextFrameChan
 
@@ -267,10 +260,10 @@ type Sample struct {
 	SampleRate int
 	Audio      *io.Reader
 	OutSamples *[]AudioFrame
+	Name       string
 }
 
 type Track struct {
-	Name   string
 	Sample *Sample
 	Volume int
 }
@@ -303,14 +296,14 @@ func redrawAll(context *ScreenContext) {
 	const coldef = termbox.ColorDefault
 	termbox.Clear(coldef, coldef)
 	tbprint(0, 0, termbox.ColorMagenta, coldef, "Press 'ctrl+c' to quit")
-	tbprint(0, 1, termbox.ColorMagenta, coldef, "Arrow keys to navigate, 'u' for volume up, 'd' for volume down")
+	tbprint(0, 1, termbox.ColorMagenta, coldef, "Arrow keys to navigate, 'u' for volume up, 'd' for volume down. 'm' for max, 'c' for 0.")
 
 	offset := 2
 	for i, track := range *context.Tracks {
 		if i == context.SelectedIndex {
-			tbprint(0, i+offset, coldef, coldef, fmt.Sprintf("Name: %-50s | Volume: %-10d >", track.Name, track.Volume))
+			tbprint(0, i+offset, coldef, coldef, fmt.Sprintf("Name: %-50s | Volume: %-10d >", track.Sample.Name, track.Volume))
 		} else {
-			tbprint(0, i+offset, coldef, coldef, fmt.Sprintf("Name: %-50s | Volume: %-10d", track.Name, track.Volume))
+			tbprint(0, i+offset, coldef, coldef, fmt.Sprintf("Name: %-50s | Volume: %-10d", track.Sample.Name, track.Volume))
 		}
 	}
 	// for
@@ -330,10 +323,10 @@ var lineOffset = 10
 type AudioFrame []int32
 
 // Grab next frame for all samples, perform mixing, add to buffer
-func runMixer(mixer *Mixer, audioFrameBuffer *AudioRingBuffer, maxFrameLength int) {
+func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLength int) {
 	log.Println("Creating mixed audio frames...")
 
-	mixedFrame := make(AudioFrame, 8192)
+	mixedFrame := make(AudioFrame, FRAME_SIZE)
 	zeroAudio(&mixedFrame)
 
 	// wrap around at the end -- should we just use a ring buffer?
@@ -353,8 +346,10 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioRingBuffer, maxFrameLength in
 		// tbLine(fmt.Sprintf("%+v\n", *sample.OutSamples))
 		// log.Printf("outSamples: %d\n", len(*sample.OutSamples))
 		// log.Printf("%v\n", (*sample.OutSamples)[0][1])
-		fmt.Printf("Trying to index %d from max of %d\n", mixer.CurrentFrame, len(*sample.OutSamples))
-		MixFrames(&mixedFrame, &(*sample.OutSamples)[mixer.CurrentFrame], volumePercentage)
+		log.Printf("Accessing index %d of %d\n", mixer.CurrentFrame, len(*sample.OutSamples))
+		if mixer.CurrentFrame < len(*sample.OutSamples) {
+			MixFrames(&mixedFrame, &(*sample.OutSamples)[mixer.CurrentFrame], volumePercentage)
+		}
 		// log.Printf("mixedAudio: %d\n", len(*mixedAudio))
 		// log.Printf("%v\n", (*mixedAudio)[0][1])
 	}
@@ -366,7 +361,7 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioRingBuffer, maxFrameLength in
 	log.Println("Done")
 }
 
-func enqueueMixedAudioFrame(audioFrameBuffer *AudioRingBuffer, mixedFrame *AudioFrame) {
+func enqueueMixedAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, mixedFrame *AudioFrame) {
 	// log.Println("Adding mixed audio frame ptr...")
 	// log.Printf("%+v\n", frame)
 	audioFrameBuffer.AddFrame(*mixedFrame)
@@ -383,19 +378,24 @@ func SetupLogger() *os.File {
 	return f
 }
 
-type AudioRingBuffer struct {
+type AudioPointRingBuffer struct {
 	r ring.Ring
 	m sync.Mutex
 }
 
-func (b *AudioRingBuffer) AddFrame(frame AudioFrame) {
+type AudioFrameRingBuffer struct {
+	r ring.Ring
+	m sync.Mutex
+}
+
+func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	// was passing pointers here but maybe not? don't *want* to realloc...
 	b.r.Enqueue(frame)
 }
 
-func (b *AudioRingBuffer) GetFrame() AudioFrame {
+func (b *AudioFrameRingBuffer) GetFrame() AudioFrame {
 	b.m.Lock()
 	defer b.m.Unlock()
 	frame := b.r.Dequeue()
@@ -405,44 +405,60 @@ func (b *AudioRingBuffer) GetFrame() AudioFrame {
 	return frame.(AudioFrame)
 }
 
-func (b *AudioRingBuffer) Capacity() int {
+func (b *AudioFrameRingBuffer) Capacity() int {
 	b.m.Lock()
 	defer b.m.Unlock()
 
 	return b.r.Capacity()
 }
 
+type SampleSet map[string][]Sample
+
 func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
 
-	if len(os.Args) < 2 {
-		log.Println("missing required arguments:  input <file_names>")
+	if len(os.Args) != 2 {
+		log.Println("missing required argument: soundsets.toml")
 		return
 	}
-	argsWithoutProg := os.Args[1:]
+
 	log.Println("Playing.  Press Ctrl-C to stop.")
 
 	tracks := []Track{}
 	screenContext := &ScreenContext{Tracks: &tracks}
 
-	for _, fileName := range argsWithoutProg {
-		f, err := os.Open(fileName)
-		chk(err)
-		defer f.Close()
-		audio, sampleRate := GetAudio(f)
-		outSamples := GetOutSamples(&audio, sampleRate)
-		sample := &Sample{
-			SampleRate: sampleRate,
-			Audio:      &audio,
-			OutSamples: &outSamples,
+	confFileName := os.Args[1]
+	sampleSetConf, err := toml.LoadFile(confFileName)
+
+	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
+
+	for _, sampleSetName := range part2.Keys() {
+		log.Println(sampleSetName)
+		fileNames := part2.Get(sampleSetName).([]*toml.TomlTree)
+		for _, fileNameStruct := range fileNames {
+			fileNameMap := fileNameStruct.ToMap()
+			fileNamesIfaces := []interface{}(fileNameMap["fileNames"].([]interface{}))
+
+			for _, fileName := range fileNamesIfaces {
+				f, err := os.Open(fileName.(string))
+				chk(err)
+				defer f.Close()
+				audio, sampleRate := GetAudio(f)
+				outSamples := GetOutSamples(&audio, sampleRate)
+				sample := &Sample{
+					SampleRate: sampleRate,
+					Audio:      &audio,
+					OutSamples: &outSamples,
+					Name:       fileName.(string),
+				}
+				track := Track{
+					Sample: sample,
+					Volume: 0,
+				}
+				tracks = append(tracks, track)
+			}
 		}
-		track := Track{
-			Name:   fileName,
-			Sample: sample,
-			Volume: 100,
-		}
-		tracks = append(tracks, track)
 	}
 
 	// Should memoize some of these repeated length computations for efficiency
@@ -454,8 +470,8 @@ func main() {
 		for _, sampleFrame := range *track.Sample.OutSamples {
 			trackLength += len(sampleFrame)
 		}
-		log.Printf("Track %s has length %d\n", track.Name, trackLength)
-		if len(*track.Sample.OutSamples) > longestTrackLength {
+		log.Printf("Track %s has length %d\n", track.Sample.Name, trackLength)
+		if trackLength > longestTrackLength {
 			longestTrackLength = trackLength
 			longestSample = track.Sample
 		}
@@ -464,7 +480,7 @@ func main() {
 	fmt.Printf("Longest Sample: %v\n", longestSample)
 
 	for i, track := range tracks {
-		fmt.Printf("%d: Normalizing length of %s to multiple of %d...\n", i, track.Name, longestTrackLength)
+		fmt.Printf("%d: Normalizing length of %s to multiple of %d...\n", i, track.Sample.Name, longestTrackLength)
 		currentLength := 0
 		remainingLength := 0
 		for _, sampleFrame := range *track.Sample.OutSamples {
@@ -477,11 +493,11 @@ func main() {
 		}
 	}
 
-	// audioFrameBuffer contains the calculated mixed audio signal for
-	// 1378 upcoming frames -- 1/32 second at 44.1 kHz
+	// audioPointBuffer contains the calculated mixed audio signal for
+	// 1378 upcoming points -- 1/32 second at 44.1 kHz
 	// ring.DefaultCapacity = 1378
 	ring.DefaultCapacity = 2
-	audioFrameBuffer := AudioRingBuffer{}
+	audioFrameBuffer := AudioFrameRingBuffer{}
 	var mixedAudio []AudioFrame
 
 	mixer := &Mixer{
@@ -495,8 +511,8 @@ func main() {
 	portaudio.Initialize()
 	defer portaudio.Terminate()
 
-	out := make([]int32, 8192)
-	stream, err := portaudio.OpenDefaultStream(0, 1, 44100, len(out), &out)
+	out := make([]int32, FRAME_SIZE)
+	stream, err := portaudio.OpenDefaultStream(0, 1, SAMPLE_RATE, len(out), &out)
 	chk(err)
 	defer stream.Close()
 	chk(stream.Start())
@@ -515,7 +531,9 @@ func main() {
 	redrawAll(screenContext)
 	// K_a := termbox.Key{97}
 
-	ticker := time.NewTicker(time.Millisecond * 23)
+	// ticker time = frame size in samples / 44.1K samples / second
+	tickerTime := 1000.0 * (float64(FRAME_SIZE) / SAMPLE_RATE)
+	ticker := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
 	go func() {
 		mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
 		for t := range ticker.C {
@@ -529,13 +547,13 @@ func main() {
 		}
 	}()
 
-loop:
+keyboardLoop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			if ev.Key == termbox.KeyCtrlC {
 				ticker.Stop()
-				break loop
+				break keyboardLoop
 			}
 
 			if ev.Key == termbox.KeyArrowUp {
@@ -552,14 +570,22 @@ loop:
 
 			if ev.Ch == 'u' {
 				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume < 100 {
-					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume++
+					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume += 10
 				}
 			}
 
 			if ev.Ch == 'd' {
 				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume > 0 {
-					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume--
+					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume -= 10
 				}
+			}
+
+			if ev.Ch == 'm' {
+				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 100
+			}
+
+			if ev.Ch == 'c' {
+				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 0
 			}
 		case termbox.EventError:
 			panic(ev.Err)
