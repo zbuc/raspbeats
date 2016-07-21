@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	// "io/ioutil"
 	"log"
 	"os"
@@ -36,23 +37,70 @@ type Looper interface {
 type Loop struct {
 }
 
-func GetOutSamples(audio *io.Reader, sampleRate int) []AudioFrame {
+var maxSize int16 = 0
+
+func GetOutSamples(audio *io.Reader, sampleRate int, numChans int) []AudioFrame {
 	outSamples := make([]AudioFrame, 0)
-	for remaining := sampleRate; remaining > 0; remaining -= FRAME_SIZE {
-		out := make(AudioFrame, FRAME_SIZE)
-		if len(out) > remaining {
-			out = out[:remaining]
+	if numChans == 2 {
+		log.Fatalln("Stereo unsupported. committing suicide because i don't feel like implementing this yet.")
+		for remaining := sampleRate; remaining > 0; remaining -= FRAME_SIZE {
+			out := make(AudioFrame, FRAME_SIZE)
+			// slice out to be only the length of what we have left to return
+			if len(out) > remaining {
+				out = out[:remaining]
+			}
+			err := binary.Read(*audio, binary.BigEndian, out)
+			if err == io.EOF {
+				log.Printf("io.EOF\n")
+				break
+			}
+			chk(err)
+			for _, r := range out {
+				if math.Abs(float64(r)) > math.Abs(float64(maxSize)) {
+					maxSize = r
+				}
+			}
+			outSamples = append(outSamples, out)
 		}
-		err := binary.Read(*audio, binary.BigEndian, out)
-		if err == io.EOF {
-			log.Printf("io.EOF\n")
-			break
+
+	} else {
+		for remaining := sampleRate; remaining > 0; remaining -= FRAME_SIZE {
+			out := make(AudioFrame, FRAME_SIZE)
+			if len(out) > remaining {
+				out = out[:remaining]
+			}
+			err := binary.Read(*audio, binary.BigEndian, out)
+			if err == io.EOF {
+				log.Printf("io.EOF\n")
+				break
+			}
+			chk(err)
+			for _, r := range out {
+				if math.Abs(float64(r)) > math.Abs(float64(maxSize)) {
+					maxSize = r
+				}
+			}
+			outSamples = append(outSamples, out)
 		}
-		chk(err)
-		outSamples = append(outSamples, out)
 	}
 
 	return outSamples
+}
+
+func applyMix(a int16, b int16) int16 {
+	// Naive algorithm:
+	// 		Does not protect against clipping (overflow)
+	return a + b
+
+	// http://www.vttoth.com/CMS/index.php/technical-notes/68
+	// log.Printf("Comparing a: %d and b: %d\n", a, b)
+	if a < 0 && b < 0 {
+		// log.Printf("A Returning: %d\n", (a*b)/1073741823)
+		return (a * b) / 16384
+	} else {
+		// log.Printf("B Returning: %d\n", 2*(a+b)-((a*b)/1073741823)-2147483647)
+		return (2 * (a + b)) - ((a * b) / 16384) - 32767
+	}
 }
 
 // Mixes addedFrame * addedFrameVolumePercentage into baseFrame, modifying it in place
@@ -97,21 +145,19 @@ func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePe
 
 	// log.Printf("Shorter sample volume: %f, added sample volume: %f", shorterSampleVolume, addedSampleVolumePercentage)
 	i := 0
-	var p int32
+	var p int16
 	for i, p = range *longerFrame {
-		// Naive algorithm:
-		// 		Does not protect against clipping (overflow)
 		if len(*shorterFrame) > i {
 			if longerFrame == addedFrame {
-				(*baseFrame)[i] = int32(addedFrameVolumePercentage*float64(p)) + (*shorterFrame)[i]
+				(*baseFrame)[i] = applyMix(int16(addedFrameVolumePercentage*float64(p)), (*shorterFrame)[i])
 			} else {
-				(*baseFrame)[i] = p + int32(addedFrameVolumePercentage*float64((*shorterFrame)[i]))
+				(*baseFrame)[i] = applyMix(p, int16(addedFrameVolumePercentage*float64((*shorterFrame)[i])))
 			}
 		} else {
 			if longerFrame == addedFrame {
-				(*baseFrame)[i] = int32(addedFrameVolumePercentage * float64(p))
+				(*baseFrame)[i] = applyMix(0, int16(addedFrameVolumePercentage*float64(p)))
 			} else {
-				(*baseFrame)[i] = p
+				(*baseFrame)[i] = applyMix(p, 0)
 			}
 		}
 	}
@@ -176,9 +222,9 @@ func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSamp
 			// Naive algorithm:
 			// 		Does not protect against clipping (overflow)
 			if len(*shorterSample) > x && len((*shorterSample)[x]) > i {
-				outFrame[i] = p + int32(shorterSampleVolume*float64((*shorterSample)[x][i]))
+				outFrame[i] = p + int16(shorterSampleVolume*float64((*shorterSample)[x][i]))
 			} else {
-				outFrame[i] = int32(addedSampleVolumePercentage * float64(p))
+				outFrame[i] = int16(addedSampleVolumePercentage * float64(p))
 			}
 		}
 
@@ -189,21 +235,22 @@ func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSamp
 	*mixedSamples = out
 }
 
-func GetAudio(f *os.File) (io.Reader, int) {
+func GetAudio(f *os.File) (io.Reader, int, int) {
 	id, data, err := readChunk(f)
 	chk(err)
 	if id.String() != "FORM" {
 		log.Println("bad file format")
 		log.Println(id.String())
-		return nil, 0
+		return nil, 0, 0
 	}
 	_, err = data.Read(id[:])
 	chk(err)
 	if id.String() != "AIFF" {
 		log.Println("bad file format")
 		log.Println(id.String())
-		return nil, 0
+		return nil, 0, 0
 	}
+
 	var c commonChunk
 	var audio io.Reader
 	for {
@@ -215,6 +262,7 @@ func GetAudio(f *os.File) (io.Reader, int) {
 		switch id.String() {
 		case "COMM":
 			chk(binary.Read(chunk, binary.BigEndian, &c))
+			log.Printf("Read file format info: %+v\n", c)
 		case "SSND":
 			chunk.Seek(8, 1) //ignore offset and block
 			audio = chunk
@@ -224,12 +272,12 @@ func GetAudio(f *os.File) (io.Reader, int) {
 	}
 
 	log.Printf("1: %+v\n", audio)
-	return audio, int(c.NumSamples)
+	return audio, int(c.NumSamples), int(c.NumChans)
 }
 
-type AudioPoint int32
+type AudioPoint int16
 
-// "point" is an individual int32 in an audioFrame
+// "point" is an individual int16 in an audioFrame
 func getNextPointChan(audioPointBuffer *AudioPointRingBuffer) chan AudioPoint {
 	return make(chan AudioPoint)
 }
@@ -247,13 +295,11 @@ func getNextFrameChan(audioFrameBuffer *AudioFrameRingBuffer) chan AudioFrame {
 	return nextFrameChan
 }
 
-func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int32, stream *portaudio.Stream, nextFrameChan *chan AudioFrame) {
-	log.Println("Getting next frame...")
+func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream, nextFrameChan *chan AudioFrame) {
 	mixedAudio := <-*nextFrameChan
 
-	log.Println("Got audio frame")
-	*out = ([]int32)(mixedAudio)
-	chk(stream.Write())
+	*out = ([]int16)(mixedAudio)
+	chk2(stream.Write(), *out)
 }
 
 type Sample struct {
@@ -284,6 +330,7 @@ func tbprint(x, y int, fg, bg termbox.Attribute, msg string) {
 type ScreenContext struct {
 	Tracks        *[]Track
 	SelectedIndex int
+	Filter        *Filter
 }
 
 type Mixer struct {
@@ -297,8 +344,9 @@ func redrawAll(context *ScreenContext) {
 	termbox.Clear(coldef, coldef)
 	tbprint(0, 0, termbox.ColorMagenta, coldef, "Press 'ctrl+c' to quit")
 	tbprint(0, 1, termbox.ColorMagenta, coldef, "Arrow keys to navigate, 'u' for volume up, 'd' for volume down. 'm' for max, 'c' for 0.")
+	tbprint(0, 2, termbox.ColorMagenta, coldef, "'t'/'r' for filter cutoff, 'g'/'h' for resonance")
 
-	offset := 2
+	offset := 4
 	for i, track := range *context.Tracks {
 		if i == context.SelectedIndex {
 			tbprint(0, i+offset, coldef, coldef, fmt.Sprintf("Name: %-50s | Volume: %-10d >", track.Sample.Name, track.Volume))
@@ -306,6 +354,11 @@ func redrawAll(context *ScreenContext) {
 			tbprint(0, i+offset, coldef, coldef, fmt.Sprintf("Name: %-50s | Volume: %-10d", track.Sample.Name, track.Volume))
 		}
 	}
+
+	offset += len(*context.Tracks) + 1
+	tbprint(0, offset, coldef, coldef, fmt.Sprintf("Cutoff %f", context.Filter.Cutoff))
+	offset++
+	tbprint(0, offset, coldef, coldef, fmt.Sprintf("Resonance %f", context.Filter.Resonance))
 	// for
 	// 	tbprint(0, 2, coldef, coldef,
 	// 		fmt.Sprintf("EventKey: k: %d, c: %c, mod: %s", curev.Key, curev.Ch, mod_str(curev.Mod)))
@@ -320,11 +373,49 @@ func zeroAudio(audio *AudioFrame) {
 
 var lineOffset = 10
 
-type AudioFrame []int32
+type AudioFrame []int16
+
+// http://www.martin-finke.de/blog/articles/audio-plugins-013-filter/
+type Filter struct {
+	buf0      float64
+	buf1      float64
+	Mode      int
+	Cutoff    float64
+	Resonance float64
+}
+
+func (f *Filter) Process(inputSample float64) float64 {
+	//set feedback amount given f and q between 0 and 1
+	fb := f.Resonance + f.Resonance/(1.0-f.Cutoff)
+
+	//for each sample...
+	f.buf0 = f.buf0 + f.Cutoff*(inputSample-f.buf0+fb*(f.buf0-f.buf1))
+	f.buf1 = f.buf1 + f.Cutoff*(f.buf0-f.buf1)
+	return f.buf1
+	// f.buf0 += f.Cutoff * (inputSample)
+	// f.buf1 += f.Cutoff * (f.buf0 - f.buf1)
+
+	// if f.Mode == LOW_PASS {
+	// 	return f.buf1
+	// } else if f.Mode == HIGH_PASS {
+	// 	return inputSample - f.buf0
+	// } else if f.Mode == BAND_PASS {
+	// 	return f.buf0 - f.buf1
+	// } else {
+	// 	return 0.0
+	// }
+}
+
+func applyFilter(frame *[]float64, f *Filter) {
+	for i, p := range *frame {
+		(*frame)[i] = f.Process(p)
+	}
+	return
+}
 
 // Grab next frame for all samples, perform mixing, add to buffer
-func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLength int) {
-	log.Println("Creating mixed audio frames...")
+func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLength int, f *Filter) {
+	// log.Println("Creating mixed audio frames...")
 
 	mixedFrame := make(AudioFrame, FRAME_SIZE)
 	zeroAudio(&mixedFrame)
@@ -334,7 +425,7 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 		mixer.CurrentFrame = 0
 	}
 
-	log.Println("Step 2: Adding processed tracks together naively")
+	// log.Println("Step 2: Adding processed tracks together naively")
 	// mix every track together
 	for _, track := range *mixer.Tracks {
 		sample := track.Sample
@@ -346,7 +437,7 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 		// tbLine(fmt.Sprintf("%+v\n", *sample.OutSamples))
 		// log.Printf("outSamples: %d\n", len(*sample.OutSamples))
 		// log.Printf("%v\n", (*sample.OutSamples)[0][1])
-		log.Printf("Accessing index %d of %d\n", mixer.CurrentFrame, len(*sample.OutSamples))
+		// log.Printf("Accessing index %d of %d\n", mixer.CurrentFrame, len(*sample.OutSamples))
 		if mixer.CurrentFrame < len(*sample.OutSamples) {
 			MixFrames(&mixedFrame, &(*sample.OutSamples)[mixer.CurrentFrame], volumePercentage)
 		}
@@ -354,11 +445,23 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 		// log.Printf("%v\n", (*mixedAudio)[0][1])
 	}
 
-	log.Println("Enqueing mixed audio frame...")
+	// transFreq := 10000.0
+	// lpfWindow := create1TransSinc(FRAME_SIZE, transFreq, SAMPLE_RATE, LOW_PASS)
+	// log.Printf("before mixedframe: %+v\n", mixedFrame)
+	floatFrame := ConvertPCMFrameToFloat(mixedFrame)
+
+	applyFilter(floatFrame, f)
+
+	// XXX memory inefficient
+	mixedFrame = *ConvertFloatFrameToPCMFrame(*floatFrame)
+
+	// log.Printf("after mixedFrame: %+v\n", mixedFrame)
+
+	// log.Println("Enqueing mixed audio frame...")
 	enqueueMixedAudioFrame(audioFrameBuffer, &mixedFrame)
 
 	mixer.CurrentFrame++
-	log.Println("Done")
+	// log.Println("Done")
 }
 
 func enqueueMixedAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, mixedFrame *AudioFrame) {
@@ -412,6 +515,43 @@ func (b *AudioFrameRingBuffer) Capacity() int {
 	return b.r.Capacity()
 }
 
+func ConvertFloatFrameToPCMFrame(frameFloat []float64) *[]int16 {
+	out := make([]int16, len(frameFloat))
+
+	for i, f := range frameFloat {
+		out[i] = int16(f * 32768)
+
+		if out[i] > 32767 {
+			out[i] = 32767
+		}
+
+		if out[i] < -32767 {
+			out[i] = -32767
+		}
+	}
+
+	return &out
+}
+
+func ConvertPCMFrameToFloat(framePCM []int16) *[]float64 {
+	out := make([]float64, len(framePCM))
+
+	for i, f := range framePCM {
+		// log.Printf("dividing %f by 32768.0\n", float64(f))
+		out[i] = float64(f) / 32768.0
+
+		if out[i] > 1 {
+			out[i] = 1
+		}
+
+		if out[i] < -1 {
+			out[i] = -1
+		}
+	}
+
+	return &out
+}
+
 type SampleSet map[string][]Sample
 
 func main() {
@@ -444,8 +584,8 @@ func main() {
 				f, err := os.Open(fileName.(string))
 				chk(err)
 				defer f.Close()
-				audio, sampleRate := GetAudio(f)
-				outSamples := GetOutSamples(&audio, sampleRate)
+				audio, sampleRate, numChans := GetAudio(f)
+				outSamples := GetOutSamples(&audio, sampleRate, numChans)
 				sample := &Sample{
 					SampleRate: sampleRate,
 					Audio:      &audio,
@@ -477,7 +617,8 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Longest Sample: %v\n", longestSample)
+	log.Printf("Longest Sample: %v\n", longestSample)
+	log.Printf("Highest amplitude point found: %v\n", maxSize)
 
 	for i, track := range tracks {
 		fmt.Printf("%d: Normalizing length of %s to multiple of %d...\n", i, track.Sample.Name, longestTrackLength)
@@ -504,19 +645,23 @@ func main() {
 		MixedAudio: &mixedAudio,
 		Tracks:     &tracks,
 	}
+	f := &Filter{Mode: LOW_PASS, Cutoff: 0.09, Resonance: 0.0}
+	screenContext.Filter = f
 
 	// fmt.Println(mixedAudio)
 
-	//assume 44100 sample rate, mono, 32 bit
+	//assume 44100 sample rate, mono, 16 bit
 	portaudio.Initialize()
 	defer portaudio.Terminate()
 
-	out := make([]int32, FRAME_SIZE)
+	out := make([]int16, FRAME_SIZE)
 	stream, err := portaudio.OpenDefaultStream(0, 1, SAMPLE_RATE, len(out), &out)
 	chk(err)
 	defer stream.Close()
 	chk(stream.Start())
 	defer stream.Stop()
+
+	log.Printf("Stream info: %+v\n", stream.Info())
 
 	err = termbox.Init()
 	if err != nil {
@@ -536,11 +681,9 @@ func main() {
 	ticker := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
 	go func() {
 		mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
-		for t := range ticker.C {
-			log.Println("Tick at", t)
-			log.Printf("Buffer: %v\n", audioFrameBuffer.Capacity())
+		for _ = range ticker.C {
 			// runMixer runs the mixer and populates the ring buffer
-			runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples))
+			runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 
 			// playAudioFrame reads from the ring buffer and writes to the audio
 			playAudioFrame(&audioFrameBuffer, &out, stream, &mixedAudioChan)
@@ -587,6 +730,34 @@ keyboardLoop:
 			if ev.Ch == 'c' {
 				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 0
 			}
+
+			if ev.Ch == 't' {
+				(*screenContext.Filter).Cutoff += 0.01
+				if (*screenContext.Filter).Cutoff >= 1.0 {
+					(*screenContext.Filter).Cutoff = 0.999999
+				}
+			}
+
+			if ev.Ch == 'r' {
+				(*screenContext.Filter).Cutoff -= 0.01
+				if (*screenContext.Filter).Cutoff < 0.0 {
+					(*screenContext.Filter).Cutoff = 0.0
+				}
+			}
+
+			if ev.Ch == 'g' {
+				(*screenContext.Filter).Resonance += 0.01
+				if (*screenContext.Filter).Resonance >= 1.0 {
+					(*screenContext.Filter).Resonance = 0.999999
+				}
+			}
+
+			if ev.Ch == 'h' {
+				(*screenContext.Filter).Resonance -= 0.01
+				if (*screenContext.Filter).Resonance < 0.0 {
+					(*screenContext.Filter).Resonance = 0.0
+				}
+			}
 		case termbox.EventError:
 			panic(ev.Err)
 		}
@@ -595,16 +766,21 @@ keyboardLoop:
 }
 
 func readChunk(r readerAtSeeker) (id ID, data *io.SectionReader, err error) {
+	// 4 bytes
 	_, err = r.Read(id[:])
 	if err != nil {
 		return
 	}
+
 	var n int32
+	// 4 bytes
 	err = binary.Read(r, binary.BigEndian, &n)
 	if err != nil {
 		return
 	}
 	off, _ := r.Seek(0, 1)
+
+	// 'n' is length of section
 	data = io.NewSectionReader(r, off, int64(n))
 	_, err = r.Seek(int64(n), 1)
 	return
@@ -629,8 +805,19 @@ type commonChunk struct {
 	SampleRate    [10]byte
 }
 
+func chk2(err error, extra interface{}) {
+	if err != nil {
+		log.Println("Fatal error!")
+		log.Println(err)
+		log.Printf("Extra: %+v\n", extra)
+		panic(err)
+	}
+}
+
 func chk(err error) {
 	if err != nil {
+		log.Println("Fatal error!")
+		log.Println(err)
 		panic(err)
 	}
 }
