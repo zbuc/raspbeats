@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gordonklaus/portaudio"
+	"github.com/mjibson/go-dsp/fft"
 	"github.com/nsf/termbox-go"
 	"github.com/pelletier/go-toml"
 	ring "github.com/zfjagann/golang-ring"
@@ -377,21 +378,48 @@ type AudioFrame []int16
 
 // http://www.martin-finke.de/blog/articles/audio-plugins-013-filter/
 type Filter struct {
-	buf0      float64
-	buf1      float64
+	buf0      complex128
+	buf1      complex128
 	Mode      int
 	Cutoff    float64
 	Resonance float64
 }
 
-func (f *Filter) Process(inputSample float64) float64 {
-	//set feedback amount given f and q between 0 and 1
-	fb := f.Resonance + f.Resonance/(1.0-f.Cutoff)
+// digital filtering info: http://www.drdobbs.com/parallel/digital-filtering-and-oversampling/184404066
+func (f *Filter) Process(inputSample complex128) complex128 {
+	// chamberlin method
+	// http://www.musicdsp.org/archive.php?classid=3#142
+	//
+	// Nyquist rate = 2 * f.Cutoff
+	//
+	// to oversample (https://en.wikipedia.org/wiki/Oversampling)
+	// the filter at factor N, we need to sample with a frequency of N times
+	// the nyquist rate
+	//
+	// but nah, we'll just hardcode the filter's sampling to be the regular
+	// sampling rate for the master output buffer for now
+	q := 1 / f.Resonance
+	f_1 := complex(2*math.Pi*f.Cutoff/SAMPLE_RATE, 0)
 
-	//for each sample...
-	f.buf0 = f.buf0 + f.Cutoff*(inputSample-f.buf0+fb*(f.buf0-f.buf1))
-	f.buf1 = f.buf1 + f.Cutoff*(f.buf0-f.buf1)
-	return f.buf1
+	lpf := f.buf1 + f_1*f.buf0
+	hpf := inputSample - lpf - complex(q, 0)*f.buf0
+	bpf := f_1*hpf + f.buf0
+
+	f.buf0 = bpf
+	f.buf1 = lpf
+
+	return lpf
+
+	// naive method
+	// //set feedback amount given f and q between 0 and 1
+	// fb := f.Resonance + f.Resonance/(1.0-f.Cutoff)
+
+	// //for each sample...
+	// f.buf0 = f.buf0 + f.Cutoff*(inputSample-f.buf0+fb*(f.buf0-f.buf1))
+	// f.buf1 = f.buf1 + f.Cutoff*(f.buf0-f.buf1)
+	// return f.buf1
+
+	// vv couldn't get these working quite right
 	// f.buf0 += f.Cutoff * (inputSample)
 	// f.buf1 += f.Cutoff * (f.buf0 - f.buf1)
 
@@ -407,8 +435,19 @@ func (f *Filter) Process(inputSample float64) float64 {
 }
 
 func applyFilter(frame *[]float64, f *Filter) {
+	col := make([]complex128, len(*frame))
 	for i, p := range *frame {
-		(*frame)[i] = f.Process(p)
+		col[i] = complex(p, 0)
+	}
+
+	freqDomain := fft.FFT(col)
+	for i, p := range freqDomain {
+		freqDomain[i] = f.Process(p)
+	}
+
+	col = fft.IFFT(freqDomain)
+	for i, p := range col {
+		(*frame)[i] = real(p)
 	}
 	return
 }
@@ -645,7 +684,9 @@ func main() {
 		MixedAudio: &mixedAudio,
 		Tracks:     &tracks,
 	}
-	f := &Filter{Mode: LOW_PASS, Cutoff: 0.09, Resonance: 0.0}
+	// f := &Filter{Mode: LOW_PASS, Cutoff: 0.09, Resonance: 0.0}
+	// in Hz?
+	f := &Filter{Mode: LOW_PASS, Cutoff: 0.09, Resonance: 0.5}
 	screenContext.Filter = f
 
 	// fmt.Println(mixedAudio)
@@ -732,30 +773,30 @@ keyboardLoop:
 			}
 
 			if ev.Ch == 't' {
-				(*screenContext.Filter).Cutoff += 0.01
-				if (*screenContext.Filter).Cutoff >= 1.0 {
-					(*screenContext.Filter).Cutoff = 0.999999
-				}
+				(*screenContext.Filter).Cutoff += 1
+				// if (*screenContext.Filter).Cutoff >= 1.0 {
+				// 	(*screenContext.Filter).Cutoff = 0.999999
+				// }
 			}
 
 			if ev.Ch == 'r' {
-				(*screenContext.Filter).Cutoff -= 0.01
-				if (*screenContext.Filter).Cutoff < 0.0 {
-					(*screenContext.Filter).Cutoff = 0.0
-				}
-			}
-
-			if ev.Ch == 'g' {
-				(*screenContext.Filter).Resonance += 0.01
-				if (*screenContext.Filter).Resonance >= 1.0 {
-					(*screenContext.Filter).Resonance = 0.999999
-				}
+				(*screenContext.Filter).Cutoff -= 1
+				// if (*screenContext.Filter).Cutoff < 0.0 {
+				// 	(*screenContext.Filter).Cutoff = 0.0
+				// }
 			}
 
 			if ev.Ch == 'h' {
+				(*screenContext.Filter).Resonance += 0.01
+				// if (*screenContext.Filter).Resonance >= 1.0 {
+				// 	(*screenContext.Filter).Resonance = 0.999999
+				// }
+			}
+
+			if ev.Ch == 'g' {
 				(*screenContext.Filter).Resonance -= 0.01
-				if (*screenContext.Filter).Resonance < 0.0 {
-					(*screenContext.Filter).Resonance = 0.0
+				if (*screenContext.Filter).Resonance < 0.5 {
+					(*screenContext.Filter).Resonance = 0.5
 				}
 			}
 		case termbox.EventError:
