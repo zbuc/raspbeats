@@ -89,8 +89,8 @@ func GetOutSamples(audio *io.Reader, sampleRate int, numChans int) []AudioFrame 
 
 func applyMix(a int16, b int16) int16 {
 	// Naive algorithm:
-	// 		Does not protect against clipping (overflow)
-	return a + b
+	// 		Does not protect against clipping (integer overflow)
+	return (a + b) / 2
 
 	// http://www.vttoth.com/CMS/index.php/technical-notes/68
 	// log.Printf("Comparing a: %d and b: %d\n", a, b)
