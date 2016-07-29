@@ -722,20 +722,24 @@ func main() {
 	tickerTime := 1000.0 * (float64(FRAME_SIZE) / SAMPLE_RATE)
 	ticker := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
 	go func() {
-		for _ = range ticker.C {
+		// for _ = range ticker.C {
+		mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
+		for {
 			// runMixer runs the mixer and populates the ring buffer
 			runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
-		}
-	}()
-
-	ticker2 := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
-	go func() {
-		mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
-		for _ = range ticker2.C {
-			// playAudioFrame reads from the ring buffer and writes to the audio
 			playAudioFrame(&audioFrameBuffer, &out, stream, &mixedAudioChan)
 		}
 	}()
+
+	// ticker2 := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
+	// go func() {
+	// 	mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
+	// 	// for _ = range ticker2.C {
+	// for {
+	// 		// playAudioFrame reads from the ring buffer and writes to the audio
+	// 		playAudioFrame(&audioFrameBuffer, &out, stream, &mixedAudioChan)
+	// 	}
+	// }()
 
 keyboardLoop:
 	for {
