@@ -88,7 +88,7 @@ func GetOutSamples(audio *io.Reader, sampleRate int, numChans int) []AudioFrame 
 }
 
 func applyMix(a int16, b int16) int16 {
-	return (a + b) / 2
+	return int16((1.0 / math.Sqrt2) * float64(a+b))
 }
 
 // Mixes addedFrame * addedFrameVolumePercentage into baseFrame, modifying it in place
