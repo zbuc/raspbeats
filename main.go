@@ -709,9 +709,9 @@ func main() {
 
 	go func() {
 		for {
-			log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
+			// log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
 			if audioFrameBuffer.Produced < audioFrameBuffer.Capacity() {
-				log.Println("runMixer!")
+				// log.Println("runMixer!")
 				// runMixer runs the mixer and populates the ring buffer
 				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			}
