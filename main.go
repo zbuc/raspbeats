@@ -88,19 +88,7 @@ func GetOutSamples(audio *io.Reader, sampleRate int, numChans int) []AudioFrame 
 }
 
 func applyMix(a int16, b int16) int16 {
-	// Naive algorithm:
-	// 		Does not protect against clipping (integer overflow)
 	return (a + b) / 2
-
-	// http://www.vttoth.com/CMS/index.php/technical-notes/68
-	// log.Printf("Comparing a: %d and b: %d\n", a, b)
-	if a < 0 && b < 0 {
-		// log.Printf("A Returning: %d\n", (a*b)/1073741823)
-		return (a * b) / 16384
-	} else {
-		// log.Printf("B Returning: %d\n", 2*(a+b)-((a*b)/1073741823)-2147483647)
-		return (2 * (a + b)) - ((a * b) / 16384) - 32767
-	}
 }
 
 // Mixes addedFrame * addedFrameVolumePercentage into baseFrame, modifying it in place
@@ -449,6 +437,12 @@ func applyFilter(frame *[]float64, f *Filter) {
 	return
 }
 
+func AddHeadroomToMixedFrames(mixedFrame *AudioFrame, trackCount int16) {
+	for i, p := range *mixedFrame {
+		(*mixedFrame)[i] = p / trackCount
+	}
+}
+
 // Grab next frame for all samples, perform mixing, add to buffer
 func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLength int, f *Filter) {
 	// log.Println("Creating mixed audio frames...")
@@ -480,6 +474,16 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 		// log.Printf("mixedAudio: %d\n", len(*mixedAudio))
 		// log.Printf("%v\n", (*mixedAudio)[0][1])
 	}
+
+	// then we have to divide each mixed output sample by the total number of samples playing to create
+	// headroom
+	// for _, track := range *mixer.Tracks {
+	// 	sample := track.Sample
+
+	// 	if mixer.CurrentFrame < len(*sample.OutSamples) {
+	// 		AddHeadroomToMixedFrames(&mixedFrame, int16(len(*mixer.Tracks)))
+	// 	}
+	// }
 
 	// transFreq := 10000.0
 	// lpfWindow := create1TransSinc(FRAME_SIZE, transFreq, SAMPLE_RATE, LOW_PASS)
