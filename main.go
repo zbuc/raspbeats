@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/gordonklaus/portaudio"
-	"github.com/mjibson/go-dsp/fft"
 	"github.com/nsf/termbox-go"
 	"github.com/pelletier/go-toml"
 	ring "github.com/zfjagann/golang-ring"
@@ -378,15 +377,23 @@ type AudioFrame []int16
 
 // http://www.martin-finke.de/blog/articles/audio-plugins-013-filter/
 type Filter struct {
-	buf0      complex128
-	buf1      complex128
+	buf0      float64
+	buf1      float64
 	Mode      int
 	Cutoff    float64
 	Resonance float64
 }
 
 // digital filtering info: http://www.drdobbs.com/parallel/digital-filtering-and-oversampling/184404066
-func (f *Filter) Process(inputSample complex128) complex128 {
+func (f *Filter) Process(inputSample float64) float64 {
+	//set feedback amount given f and q between 0 and 1
+	fb := f.Resonance + f.Resonance/(1.0-f.Cutoff)
+
+	//for each sample...
+	f.buf0 = f.buf0 + f.Cutoff*(inputSample-f.buf0+fb*(f.buf0-f.buf1))
+	f.buf1 = f.buf1 + f.Cutoff*(f.buf0-f.buf1)
+	return f.buf1
+
 	// chamberlin method
 	// http://www.musicdsp.org/archive.php?classid=3#142
 	//
@@ -398,17 +405,17 @@ func (f *Filter) Process(inputSample complex128) complex128 {
 	//
 	// but nah, we'll just hardcode the filter's sampling to be the regular
 	// sampling rate for the master output buffer for now
-	q := 1 / f.Resonance
-	f_1 := complex(2*math.Pi*f.Cutoff/SAMPLE_RATE, 0)
+	// q := 1 / f.Resonance
+	// f_1 := 2 * math.Pi * f.Cutoff / SAMPLE_RATE
 
-	lpf := f.buf1 + f_1*f.buf0
-	hpf := inputSample - lpf - complex(q, 0)*f.buf0
-	bpf := f_1*hpf + f.buf0
+	// lpf := f.buf1 + f_1*f.buf0
+	// hpf := inputSample - lpf - q*f.buf0
+	// bpf := f_1*hpf + f.buf0
 
-	f.buf0 = bpf
-	f.buf1 = lpf
+	// f.buf0 = bpf
+	// f.buf1 = lpf
 
-	return lpf
+	// return lpf
 
 	// naive method
 	// //set feedback amount given f and q between 0 and 1
@@ -435,20 +442,10 @@ func (f *Filter) Process(inputSample complex128) complex128 {
 }
 
 func applyFilter(frame *[]float64, f *Filter) {
-	col := make([]complex128, len(*frame))
 	for i, p := range *frame {
-		col[i] = complex(p, 0)
+		(*frame)[i] = f.Process(p)
 	}
 
-	freqDomain := fft.FFT(col)
-	for i, p := range freqDomain {
-		freqDomain[i] = f.Process(p)
-	}
-
-	col = fft.IFFT(freqDomain)
-	for i, p := range col {
-		(*frame)[i] = real(p)
-	}
 	return
 }
 
@@ -686,7 +683,7 @@ func main() {
 	}
 	// f := &Filter{Mode: LOW_PASS, Cutoff: 0.09, Resonance: 0.0}
 	// in Hz?
-	f := &Filter{Mode: LOW_PASS, Cutoff: 0.09, Resonance: 0.5}
+	f := &Filter{Mode: LOW_PASS, Cutoff: 145.0, Resonance: 0.5}
 	screenContext.Filter = f
 
 	// fmt.Println(mixedAudio)
@@ -721,11 +718,16 @@ func main() {
 	tickerTime := 1000.0 * (float64(FRAME_SIZE) / SAMPLE_RATE)
 	ticker := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
 	go func() {
-		mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
 		for _ = range ticker.C {
 			// runMixer runs the mixer and populates the ring buffer
 			runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
+		}
+	}()
 
+	ticker2 := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
+	go func() {
+		mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
+		for _ = range ticker2.C {
 			// playAudioFrame reads from the ring buffer and writes to the audio
 			playAudioFrame(&audioFrameBuffer, &out, stream, &mixedAudioChan)
 		}
@@ -795,8 +797,8 @@ keyboardLoop:
 
 			if ev.Ch == 'g' {
 				(*screenContext.Filter).Resonance -= 0.01
-				if (*screenContext.Filter).Resonance < 0.5 {
-					(*screenContext.Filter).Resonance = 0.5
+				if (*screenContext.Filter).Resonance < 0.0 {
+					(*screenContext.Filter).Resonance = 0.0
 				}
 			}
 		case termbox.EventError:
