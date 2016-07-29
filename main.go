@@ -508,13 +508,17 @@ type AudioPointRingBuffer struct {
 }
 
 type AudioFrameRingBuffer struct {
-	r ring.Ring
-	m sync.Mutex
+	r        ring.Ring
+	m        sync.Mutex
+	Produced int
 }
 
 func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 	b.m.Lock()
 	defer b.m.Unlock()
+
+	b.Produced++
+
 	// was passing pointers here but maybe not? don't *want* to realloc...
 	b.r.Enqueue(frame)
 }
@@ -522,6 +526,9 @@ func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 func (b *AudioFrameRingBuffer) GetFrame() AudioFrame {
 	b.m.Lock()
 	defer b.m.Unlock()
+
+	b.Produced--
+
 	frame := b.r.Dequeue()
 	if frame == nil {
 		return nil
@@ -700,8 +707,15 @@ func main() {
 
 	go func() {
 		for {
+			if audioFrameBuffer.Produced < audioFrameBuffer.Capacity() {
+				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
+			}
+		}
+	}()
+
+	go func() {
+		for {
 			// runMixer runs the mixer and populates the ring buffer
-			runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			playAudioFrame(&audioFrameBuffer, &out, stream)
 		}
 	}()
