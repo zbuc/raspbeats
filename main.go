@@ -15,7 +15,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 )
 
 // The frame size in samples/points.
@@ -265,26 +264,8 @@ func GetAudio(f *os.File) (io.Reader, int, int) {
 
 type AudioPoint int16
 
-// "point" is an individual int16 in an audioFrame
-func getNextPointChan(audioPointBuffer *AudioPointRingBuffer) chan AudioPoint {
-	return make(chan AudioPoint)
-}
-
-func getNextFrameChan(audioFrameBuffer *AudioFrameRingBuffer) chan AudioFrame {
-	nextFrameChan := make(chan AudioFrame)
-	go func() {
-		for {
-			mixedAudio := audioFrameBuffer.GetFrame()
-			if mixedAudio != nil {
-				nextFrameChan <- mixedAudio
-			}
-		}
-	}()
-	return nextFrameChan
-}
-
-func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream, nextFrameChan *chan AudioFrame) {
-	mixedAudio := <-*nextFrameChan
+func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
+	mixedAudio := audioFrameBuffer.GetFrame()
 
 	*out = ([]int16)(mixedAudio)
 	chk2(stream.Write(), *out)
@@ -716,37 +697,20 @@ func main() {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	termbox.Flush()
 	redrawAll(screenContext)
-	// K_a := termbox.Key{97}
 
-	// ticker time = frame size in samples / 44.1K samples / second
-	tickerTime := 1000.0 * (float64(FRAME_SIZE) / SAMPLE_RATE)
-	ticker := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
 	go func() {
-		// for _ = range ticker.C {
-		mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
 		for {
 			// runMixer runs the mixer and populates the ring buffer
 			runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
-			playAudioFrame(&audioFrameBuffer, &out, stream, &mixedAudioChan)
+			playAudioFrame(&audioFrameBuffer, &out, stream)
 		}
 	}()
-
-	// ticker2 := time.NewTicker(time.Millisecond * time.Duration(tickerTime))
-	// go func() {
-	// 	mixedAudioChan := getNextFrameChan(&audioFrameBuffer)
-	// 	// for _ = range ticker2.C {
-	// for {
-	// 		// playAudioFrame reads from the ring buffer and writes to the audio
-	// 		playAudioFrame(&audioFrameBuffer, &out, stream, &mixedAudioChan)
-	// 	}
-	// }()
 
 keyboardLoop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			if ev.Key == termbox.KeyCtrlC {
-				ticker.Stop()
 				break keyboardLoop
 			}
 
