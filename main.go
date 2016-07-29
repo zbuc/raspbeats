@@ -518,6 +518,7 @@ func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 	defer b.m.Unlock()
 
 	b.Produced++
+	log.Printf("incremented Produced to %d\n", b.Produced)
 
 	// was passing pointers here but maybe not? don't *want* to realloc...
 	b.r.Enqueue(frame)
@@ -667,6 +668,7 @@ func main() {
 	// ring.DefaultCapacity = 1378
 	ring.DefaultCapacity = 2
 	audioFrameBuffer := AudioFrameRingBuffer{}
+	audioFrameBuffer.r.SetCapacity(2)
 	var mixedAudio []AudioFrame
 
 	mixer := &Mixer{
@@ -707,7 +709,10 @@ func main() {
 
 	go func() {
 		for {
+			log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
 			if audioFrameBuffer.Produced < audioFrameBuffer.Capacity() {
+				log.Println("runMixer!")
+				// runMixer runs the mixer and populates the ring buffer
 				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			}
 		}
@@ -715,8 +720,10 @@ func main() {
 
 	go func() {
 		for {
-			// runMixer runs the mixer and populates the ring buffer
-			playAudioFrame(&audioFrameBuffer, &out, stream)
+			// and we only try to play frames when we have at least 1 waiting
+			if audioFrameBuffer.Produced >= 1 {
+				playAudioFrame(&audioFrameBuffer, &out, stream)
+			}
 		}
 	}()
 
