@@ -681,9 +681,9 @@ func main() {
 		MixedAudio: &mixedAudio,
 		Tracks:     &tracks,
 	}
-	// f := &Filter{Mode: LOW_PASS, Cutoff: 0.09, Resonance: 0.0}
-	// in Hz?
-	f := &Filter{Mode: LOW_PASS, Cutoff: 145.0, Resonance: 0.5}
+	f := &Filter{Mode: LOW_PASS, Cutoff: 0.39, Resonance: 0.27}
+	// in Hz
+	// f := &Filter{Mode: LOW_PASS, Cutoff: 145.0, Resonance: 0.5}
 	screenContext.Filter = f
 
 	// fmt.Println(mixedAudio)
@@ -775,27 +775,27 @@ keyboardLoop:
 			}
 
 			if ev.Ch == 't' {
-				(*screenContext.Filter).Cutoff += 1
-				// if (*screenContext.Filter).Cutoff >= 1.0 {
-				// 	(*screenContext.Filter).Cutoff = 0.999999
-				// }
+				(*screenContext.Filter).Cutoff += 0.01
+				if (*screenContext.Filter).Cutoff >= 1.0 {
+					(*screenContext.Filter).Cutoff = 0.999999
+				}
 			}
 
 			if ev.Ch == 'r' {
-				(*screenContext.Filter).Cutoff -= 1
-				// if (*screenContext.Filter).Cutoff < 0.0 {
-				// 	(*screenContext.Filter).Cutoff = 0.0
-				// }
-			}
-
-			if ev.Ch == 'h' {
-				(*screenContext.Filter).Resonance += 0.01
-				// if (*screenContext.Filter).Resonance >= 1.0 {
-				// 	(*screenContext.Filter).Resonance = 0.999999
-				// }
+				(*screenContext.Filter).Cutoff -= 0.01
+				if (*screenContext.Filter).Cutoff < 0.0 {
+					(*screenContext.Filter).Cutoff = 0.0
+				}
 			}
 
 			if ev.Ch == 'g' {
+				(*screenContext.Filter).Resonance += 0.01
+				if (*screenContext.Filter).Resonance >= 1.0 {
+					(*screenContext.Filter).Resonance = 0.999999
+				}
+			}
+
+			if ev.Ch == 'h' {
 				(*screenContext.Filter).Resonance -= 0.01
 				if (*screenContext.Filter).Resonance < 0.0 {
 					(*screenContext.Filter).Resonance = 0.0
