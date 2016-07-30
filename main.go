@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	// "io/ioutil"
 	"log"
 	"os"
@@ -628,9 +629,13 @@ func main() {
 					OutSamples: &outSamples,
 					Name:       fileName.(string),
 				}
+				volume := 0
+				if strings.Contains(fileName.(string), "fx") {
+					volume = 100
+				}
 				track := Track{
 					Sample: sample,
-					Volume: 0,
+					Volume: volume,
 				}
 				tracks = append(tracks, track)
 			}
@@ -752,79 +757,79 @@ func main() {
 		}
 	}()
 
-keyboardLoop:
-	for {
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			if ev.Key == termbox.KeyCtrlC {
-				doneChan <- true
-				break keyboardLoop
-			}
+	// keyboardLoop:
+	// 	for {
+	// 		switch ev := termbox.PollEvent(); ev.Type {
+	// 		case termbox.EventKey:
+	// 			if ev.Key == termbox.KeyCtrlC {
+	// 				doneChan <- true
+	// 				break keyboardLoop
+	// 			}
 
-			if ev.Key == termbox.KeyArrowUp {
-				if screenContext.SelectedIndex > 0 {
-					screenContext.SelectedIndex--
-				}
-			}
+	// 			if ev.Key == termbox.KeyArrowUp {
+	// 				if screenContext.SelectedIndex > 0 {
+	// 					screenContext.SelectedIndex--
+	// 				}
+	// 			}
 
-			if ev.Key == termbox.KeyArrowDown {
-				if screenContext.SelectedIndex < len(*screenContext.Tracks)-1 {
-					screenContext.SelectedIndex++
-				}
-			}
+	// 			if ev.Key == termbox.KeyArrowDown {
+	// 				if screenContext.SelectedIndex < len(*screenContext.Tracks)-1 {
+	// 					screenContext.SelectedIndex++
+	// 				}
+	// 			}
 
-			if ev.Ch == 'u' {
-				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume < 100 {
-					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume += 10
-				}
-			}
+	// 			if ev.Ch == 'u' {
+	// 				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume < 100 {
+	// 					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume += 10
+	// 				}
+	// 			}
 
-			if ev.Ch == 'd' {
-				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume > 0 {
-					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume -= 10
-				}
-			}
+	// 			if ev.Ch == 'd' {
+	// 				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume > 0 {
+	// 					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume -= 10
+	// 				}
+	// 			}
 
-			if ev.Ch == 'm' {
-				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 100
-			}
+	// 			if ev.Ch == 'm' {
+	// 				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 100
+	// 			}
 
-			if ev.Ch == 'c' {
-				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 0
-			}
+	// 			if ev.Ch == 'c' {
+	// 				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 0
+	// 			}
 
-			if ev.Ch == 't' {
-				(*screenContext.Filter).Cutoff += 0.01
-				if (*screenContext.Filter).Cutoff >= 1.0 {
-					(*screenContext.Filter).Cutoff = 0.999999
-				}
-			}
+	// 			if ev.Ch == 't' {
+	// 				(*screenContext.Filter).Cutoff += 0.01
+	// 				if (*screenContext.Filter).Cutoff >= 1.0 {
+	// 					(*screenContext.Filter).Cutoff = 0.999999
+	// 				}
+	// 			}
 
-			if ev.Ch == 'r' {
-				(*screenContext.Filter).Cutoff -= 0.01
-				if (*screenContext.Filter).Cutoff < 0.0 {
-					(*screenContext.Filter).Cutoff = 0.0
-				}
-			}
+	// 			if ev.Ch == 'r' {
+	// 				(*screenContext.Filter).Cutoff -= 0.01
+	// 				if (*screenContext.Filter).Cutoff < 0.0 {
+	// 					(*screenContext.Filter).Cutoff = 0.0
+	// 				}
+	// 			}
 
-			if ev.Ch == 'g' {
-				(*screenContext.Filter).Resonance += 0.01
-				if (*screenContext.Filter).Resonance >= 1.0 {
-					(*screenContext.Filter).Resonance = 0.999999
-				}
-			}
+	// 			if ev.Ch == 'g' {
+	// 				(*screenContext.Filter).Resonance += 0.01
+	// 				if (*screenContext.Filter).Resonance >= 1.0 {
+	// 					(*screenContext.Filter).Resonance = 0.999999
+	// 				}
+	// 			}
 
-			if ev.Ch == 'h' {
-				(*screenContext.Filter).Resonance -= 0.01
-				if (*screenContext.Filter).Resonance < 0.0 {
-					(*screenContext.Filter).Resonance = 0.0
-				}
-			}
-		case termbox.EventError:
-			panic(ev.Err)
-		}
-		redrawAll(screenContext)
-	}
+	// 			if ev.Ch == 'h' {
+	// 				(*screenContext.Filter).Resonance -= 0.01
+	// 				if (*screenContext.Filter).Resonance < 0.0 {
+	// 					(*screenContext.Filter).Resonance = 0.0
+	// 				}
+	// 			}
+	// 		case termbox.EventError:
+	// 			panic(ev.Err)
+	// 		}
+	// 		redrawAll(screenContext)
+	// 	}
 }
 
 func readChunk(r readerAtSeeker) (id ID, data *io.SectionReader, err error) {
