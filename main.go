@@ -707,7 +707,10 @@ func main() {
 	termbox.Flush()
 	redrawAll(screenContext)
 
+	doneChan := make(chan bool)
+
 	go func() {
+		quit := false
 		for {
 			// log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
 			if audioFrameBuffer.Produced < audioFrameBuffer.Capacity() {
@@ -715,14 +718,22 @@ func main() {
 				// runMixer runs the mixer and populates the ring buffer
 				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			}
-		}
-	}()
 
-	go func() {
-		for {
 			// and we only try to play frames when we have at least 1 waiting
 			if audioFrameBuffer.Produced >= 1 {
 				playAudioFrame(&audioFrameBuffer, &out, stream)
+			}
+
+			go func() {
+				select {
+				case <-doneChan:
+					log.Println("DONE")
+					quit = true
+				}
+			}()
+
+			if quit {
+				break
 			}
 		}
 	}()
@@ -732,6 +743,7 @@ keyboardLoop:
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			if ev.Key == termbox.KeyCtrlC {
+				doneChan <- true
 				break keyboardLoop
 			}
 
