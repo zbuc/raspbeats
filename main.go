@@ -29,9 +29,10 @@ const (
 // This affects the ticker schedule as well as the latency of input
 // processing. I.e. any changes to the mixer are audible on a per-frame
 // basis (unless we adpot a point-based ring buffer instead)
-// const FRAME_SIZE = 344
+const FRAME_SIZE = 344
+
 // const FRAME_SIZE = 1378
-const FRAME_SIZE = 689
+// const FRAME_SIZE = 689
 
 const SAMPLE_RATE = 44100
 
