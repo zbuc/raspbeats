@@ -678,9 +678,9 @@ func main() {
 	// audioPointBuffer contains the calculated mixed audio signal for
 	// 1378 upcoming points -- 1/32 second at 44.1 kHz
 	// ring.DefaultCapacity = 1378
-	ring.DefaultCapacity = 2
+	ring.DefaultCapacity = 16
 	audioFrameBuffer := AudioFrameRingBuffer{}
-	audioFrameBuffer.r.SetCapacity(2)
+	audioFrameBuffer.r.SetCapacity(16)
 	var mixedAudio []AudioFrame
 
 	mixer := &Mixer{
@@ -755,8 +755,8 @@ func main() {
 				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			}
 
-			// and we only try to play frames when we have at least 1 waiting
-			if audioFrameBuffer.Produced >= 1 {
+			// and we only try to play frames when we have at least 2 waiting
+			if audioFrameBuffer.Produced >= 2 {
 				if quit {
 					break
 				}
