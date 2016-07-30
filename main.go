@@ -716,6 +716,7 @@ func main() {
 	//p.Output.Device = devs[i]
 	p.SampleRate = 44100.0
 	p.FramesPerBuffer = len(out)
+	p.Output.Channels = 1
 	stream, err := portaudio.OpenStream(p, &out)
 	// stream, err := portaudio.OpenDefaultStream(0, 1, SAMPLE_RATE, len(out), &out)
 	chk(err)
