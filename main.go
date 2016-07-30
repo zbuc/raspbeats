@@ -699,7 +699,25 @@ func main() {
 	defer portaudio.Terminate()
 
 	out := make([]int16, FRAME_SIZE)
-	stream, err := portaudio.OpenDefaultStream(0, 1, SAMPLE_RATE, len(out), &out)
+	devs, err := portaudio.Devices()
+	if err != nil {
+		log.Printf("error enumerating devices: %v\n", err)
+		return
+	}
+	for _, g := range devs {
+		log.Printf("%d: %+v\n", g)
+	}
+	i := 2
+	if i < 0 {
+		return
+	}
+
+	p := portaudio.HighLatencyParameters(nil, devs[i])
+	//p.Output.Device = devs[i]
+	p.SampleRate = 44100.0
+	p.FramesPerBuffer = len(out)
+	stream, err := portaudio.OpenStream(p, &out)
+	// stream, err := portaudio.OpenDefaultStream(0, 1, SAMPLE_RATE, len(out), &out)
 	chk(err)
 	defer stream.Close()
 	chk(stream.Start())
