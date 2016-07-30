@@ -711,17 +711,19 @@ func main() {
 
 	log.Printf("Stream info: %+v\n", stream.Info())
 
-	err = termbox.Init()
-	if err != nil {
-		panic(err)
+	if false {
+		err = termbox.Init()
+		if err != nil {
+			panic(err)
+		}
+		defer termbox.Close()
+
+		termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
+
+		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+		termbox.Flush()
+		redrawAll(screenContext)
 	}
-	defer termbox.Close()
-
-	termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
-
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-	termbox.Flush()
-	redrawAll(screenContext)
 
 	doneChan := make(chan bool)
 
