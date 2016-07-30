@@ -704,8 +704,8 @@ func main() {
 		log.Printf("error enumerating devices: %v\n", err)
 		return
 	}
-	for _, g := range devs {
-		log.Printf("%d: %+v\n", g)
+	for x, g := range devs {
+		log.Printf("%d: %+v\n", x, g)
 	}
 	i := 2
 	if i < 0 {
@@ -726,6 +726,7 @@ func main() {
 	h, err := portaudio.DefaultHostApi()
 	chk(err)
 	log.Printf("Default Output Device Info: %+v\n", h.DefaultOutputDevice)
+	log.Printf("Selected Output Device Info: %+v\n", devs[i])
 
 	log.Printf("Stream info: %+v\n", stream.Info())
 
