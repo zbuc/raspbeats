@@ -17,6 +17,13 @@ import (
 	"sync"
 )
 
+const (
+	LOW_PASS = iota
+	HIGH_PASS
+	BAND_PASS
+	BAND_STOP
+)
+
 // The frame size in samples/points.
 // 344 is 1/128 of a second at 44.1kHz
 // This affects the ticker schedule as well as the latency of input
@@ -518,7 +525,6 @@ func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 	defer b.m.Unlock()
 
 	b.Produced++
-	log.Printf("incremented Produced to %d\n", b.Produced)
 
 	// was passing pointers here but maybe not? don't *want* to realloc...
 	b.r.Enqueue(frame)
@@ -693,6 +699,10 @@ func main() {
 	chk(stream.Start())
 	defer stream.Stop()
 
+	h, err := portaudio.DefaultHostApi()
+	chk(err)
+	log.Printf("Default Output Device Info: %+v\n", h.DefaultOutputDevice)
+
 	log.Printf("Stream info: %+v\n", stream.Info())
 
 	err = termbox.Init()
@@ -721,6 +731,9 @@ func main() {
 
 			// and we only try to play frames when we have at least 1 waiting
 			if audioFrameBuffer.Produced >= 1 {
+				if quit {
+					break
+				}
 				playAudioFrame(&audioFrameBuffer, &out, stream)
 			}
 
