@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	// "time"
 	// "io/ioutil"
 	"log"
 	"os"
@@ -717,6 +718,7 @@ func main() {
 	p.SampleRate = 44100.0
 	p.FramesPerBuffer = len(out)
 	p.Output.Channels = 1
+	p.Output.Latency = p.Output.Latency * 2
 	stream, err := portaudio.OpenStream(p, &out)
 	// stream, err := portaudio.OpenDefaultStream(0, 1, SAMPLE_RATE, len(out), &out)
 	chk(err)
