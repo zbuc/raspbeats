@@ -774,30 +774,7 @@ func main() {
 	termbox.Flush()
 	redrawAll(screenContext)
 
-	// keep the ring buffer full
-	mixerDone := make(chan bool)
-	go func(doneChan chan bool) {
-		quit := false
-		go func() {
-			quit = <-doneChan
-		}()
-
-		for {
-			if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
-				// log.Println("runMixer!")
-				// runMixer runs the mixer and populates the ring buffer
-				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
-			}
-
-			if quit {
-				log.Println("Quitting mixer")
-				break
-			}
-		}
-	}(mixerDone)
-
 	playbackDone := make(chan bool)
-	ticker := time.NewTicker(timeToSendFrame)
 	go func(doneChan chan bool) {
 		quit := false
 		go func() {
@@ -806,13 +783,13 @@ func main() {
 			log.Println("Received playback quit")
 		}()
 
-		for _ = range ticker.C {
-			// // log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
-			// if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
-			// 	// log.Println("runMixer!")
-			// 	// runMixer runs the mixer and populates the ring buffer
-			// 	runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
-			// }
+		for {
+			// log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
+			if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
+				// log.Println("runMixer!")
+				// runMixer runs the mixer and populates the ring buffer
+				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
+			}
 
 			// and we only try to play frames when we have at least 1 waiting
 			if audioFrameBuffer.produced >= 1 {
@@ -837,8 +814,6 @@ keyboardLoop:
 		case termbox.EventKey:
 			if ev.Key == termbox.KeyCtrlC {
 				log.Println("CTRL+C pressed")
-				log.Println("Sending mixer done")
-				mixerDone <- true
 				log.Println("Sending playback done")
 				playbackDone <- true
 				log.Println("Breaking keyboardLoop")
