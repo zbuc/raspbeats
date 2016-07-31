@@ -235,9 +235,11 @@ func tbprint(x, y int, fg, bg termbox.Attribute, msg string) {
 }
 
 type ScreenContext struct {
-	Tracks        *[]Track
-	SelectedIndex int
-	Filter        *Filter
+	Tracks           *[]Track
+	SelectedIndex    int
+	Filter           *Filter
+	SelectedSoundset int
+	MaxSoundset      int
 }
 
 type Mixer struct {
@@ -492,6 +494,19 @@ func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 	return pins
 }
 
+func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
+	if behavior.Behavior == "nextsoundset" {
+		if (*context).SelectedSoundset < (*context).MaxSoundset {
+			(*context).SelectedSoundset++
+		} else {
+			// wrap around
+			(*context).SelectedSoundset = 0
+		}
+
+		log.Printf("Selected soundset %d\n", (*context).SelectedSoundset)
+	}
+}
+
 func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
@@ -525,7 +540,7 @@ func main() {
 		for {
 			for pin, behavior := range pins {
 				if pin.Read() == 0 {
-					log.Printf("Triggering behavior %s\n", behavior)
+					triggerBehavior(behavior, screenContext)
 				}
 			}
 
@@ -538,6 +553,7 @@ func main() {
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
 	for _, sampleSetName := range part2.Keys() {
+		(*screenContext).MaxSoundset++
 		log.Println(sampleSetName)
 		fileNames := part2.Get(sampleSetName).([]*toml.TomlTree)
 		for _, fileNameStruct := range fileNames {
