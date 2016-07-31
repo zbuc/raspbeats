@@ -275,12 +275,18 @@ func GetAudio(f *os.File) (io.Reader, int, int) {
 type AudioPoint int16
 
 func playEmptyAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
+	audioFrameBuffer.m.Lock()
+	defer audioFrameBuffer.m.Unlock()
+
 	nothing := make([]int16, FRAME_SIZE)
 	*out = ([]int16)(nothing)
 	chk2(stream.Write(), *out)
 }
 
 func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
+	audioFrameBuffer.m.Lock()
+	defer audioFrameBuffer.m.Unlock()
+
 	mixedAudio := audioFrameBuffer.GetFrame()
 
 	*out = ([]int16)(mixedAudio)
@@ -540,8 +546,10 @@ func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 }
 
 func (b *AudioFrameRingBuffer) GetFrame() AudioFrame {
-	b.m.Lock()
-	defer b.m.Unlock()
+	// log.Println("GetFrame lock")
+	// b.m.Lock()
+	// log.Println("GetFrame locked")
+	// defer b.m.Unlock()
 
 	b.produced--
 
@@ -784,7 +792,7 @@ func main() {
 	}(mixerDone)
 
 	playbackDone := make(chan bool)
-	ticker := time.NewTicker(timeToSendFrame / 4)
+	ticker := time.NewTicker(timeToSendFrame)
 	go func(doneChan chan bool) {
 		quit := false
 		go func() {
