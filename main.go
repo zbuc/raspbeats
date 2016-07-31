@@ -462,31 +462,20 @@ type GPIOPinBehaviors map[rpio.Pin]GPIOBehavior
 
 func initGPIO() GPIOPinBehaviors {
 	err := rpio.Open()
-	fmt.Println(err)
 
-	pin := rpio.Pin(18)
+	if err != nil {
+		log.Println("Error initializing GPIO", err)
+	}
 
-	pin.Input() // Input mode
-	pin.PullUp()
-	res := pin.Read() // Read state from pin (High / Low)
-
-	fmt.Println(res)
-
-	// err := rpio.Open()
-
-	// if err != nil {
-	// 	log.Println("Error initializing GPIO", err)
-	// }
-
-	// // just hackily hardcoding these for now, should move to conf file
+	// just hackily hardcoding these for now, should move to conf file
 	pins := make(GPIOPinBehaviors)
-	// pins[rpio.Pin(18)] = 1
+	pins[rpio.Pin(18)] = 1
 
-	// // set up each pin
-	// for pin, _ := range pins {
-	// 	pin.Input()
-	// 	pin.PullUp()
-	// }
+	// set up each pin
+	for pin, _ := range pins {
+		pin.Input()
+		pin.PullUp()
+	}
 
 	return pins
 }
