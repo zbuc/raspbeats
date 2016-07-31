@@ -763,27 +763,35 @@ func main() {
 
 	doneChan := make(chan bool)
 
-	ticker := time.NewTicker(timeToSendFrame)
+	// keep the ring buffer full
 	go func() {
-		quit := false
-		for _ = range ticker.C {
-			// log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
+		for {
 			if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
 				// log.Println("runMixer!")
 				// runMixer runs the mixer and populates the ring buffer
 				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			}
+		}
+	}()
 
-			// and we only try to play frames when we have at least 2 waiting
-			if audioFrameBuffer.produced >= 2 {
-				if quit {
-					break
-				}
-				log.Println("If")
+	ticker := time.NewTicker(timeToSendFrame)
+	go func() {
+		quit := false
+		for _ = range ticker.C {
+			// // log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
+			// if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
+			// 	// log.Println("runMixer!")
+			// 	// runMixer runs the mixer and populates the ring buffer
+			// 	runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
+			// }
+
+			// and we only try to play frames when we have at least 1 waiting
+			if audioFrameBuffer.produced >= 1 {
+				// log.Println("If")
 				playAudioFrame(&audioFrameBuffer, &out, stream)
 			} else {
 				// just play nothingness i guess
-				log.Println("Else")
+				// log.Println("Else")
 				playEmptyAudioFrame(&audioFrameBuffer, &out, stream)
 			}
 
