@@ -797,17 +797,19 @@ func main() {
 		}()
 
 		for {
-			if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
-				// runMixer runs the mixer and populates the ring buffer
-				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f, screenContext.SelectedSoundset)
-			}
+			if playbackAllowed {
+				if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
+					// runMixer runs the mixer and populates the ring buffer
+					runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f, screenContext.SelectedSoundset)
+				}
 
-			// and we only try to play frames when we have at least 1 waiting
-			if audioFrameBuffer.produced >= 1 {
-				playAudioFrame(&audioFrameBuffer, &out, stream)
-			} else {
-				// just play nothingness i guess
-				playEmptyAudioFrame(&audioFrameBuffer, &out, stream)
+				// and we only try to play frames when we have at least 1 waiting
+				if audioFrameBuffer.produced >= 1 {
+					playAudioFrame(&audioFrameBuffer, &out, stream)
+				} else {
+					// just play nothingness i guess
+					playEmptyAudioFrame(&audioFrameBuffer, &out, stream)
+				}
 			}
 
 			if quit {
