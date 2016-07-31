@@ -217,8 +217,9 @@ type Sample struct {
 }
 
 type Track struct {
-	Sample *Sample
-	Volume int
+	Sample   *Sample
+	Volume   int
+	Soundset int
 }
 
 func tbLine(msg string) {
@@ -319,7 +320,7 @@ func applyFilter(frame *AudioFrame, f *Filter) {
 // }
 
 // Grab next frame for all samples, perform mixing, add to buffer
-func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLength int, f *Filter) {
+func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLength int, f *Filter, selectedSoundset int) {
 	// log.Println("Creating mixed audio frames...")
 
 	mixedFrame := make(AudioFrame, FRAME_SIZE)
@@ -332,6 +333,9 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 
 	// mix every track together
 	for _, track := range *mixer.Tracks {
+		if track.Soundset != selectedSoundset {
+			continue
+		}
 		sample := track.Sample
 		volumePercentage := float32(track.Volume) / 100.0
 
@@ -528,8 +532,9 @@ func playIntro(out *[]float32, stream *portaudio.Stream) {
 		Name:       fileName,
 	}
 	track := Track{
-		Sample: sample,
-		Volume: 100,
+		Sample:   sample,
+		Volume:   100,
+		Soundset: -1,
 	}
 
 	playTrack(track, out, stream)
@@ -622,7 +627,7 @@ func main() {
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
 	(*screenContext).MaxSoundset = len(part2.Keys()) - 1
-	for _, sampleSetName := range part2.Keys() {
+	for soundSet, sampleSetName := range part2.Keys() {
 		log.Println(sampleSetName)
 		fileNames := part2.Get(sampleSetName).([]*toml.TomlTree)
 		for _, fileNameStruct := range fileNames {
@@ -646,8 +651,9 @@ func main() {
 					volume = 100
 				}
 				track := Track{
-					Sample: sample,
-					Volume: volume,
+					Sample:   sample,
+					Volume:   volume,
+					Soundset: soundSet,
 				}
 				tracks = append(tracks, track)
 			}
@@ -758,7 +764,7 @@ func main() {
 		for {
 			if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
 				// runMixer runs the mixer and populates the ring buffer
-				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
+				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f, screenContext.SelectedSoundset)
 			}
 
 			// and we only try to play frames when we have at least 1 waiting
