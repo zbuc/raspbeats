@@ -609,6 +609,11 @@ func main() {
 	log.Printf("Highest amplitude point found: %v\n", maxSize)
 
 	for i, track := range tracks {
+		// longest track doesn't need to be mangles
+		if track.Sample == longestSample {
+			log.Printf("Not normalizing %s\n", track.Sample.Name)
+			continue
+		}
 		log.Printf("%d: Normalizing length of %s to multiple of %d(longest sample was %s)...\n", i, track.Sample.Name, longestTrackLength, longestSample.Name)
 		currentLength := 0
 
