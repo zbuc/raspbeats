@@ -496,7 +496,7 @@ func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 
 func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	if behavior.Behavior == "nextsoundset" {
-		if (*context).SelectedSoundset < (*context).MaxSoundset-1 {
+		if (*context).SelectedSoundset < (*context).MaxSoundset {
 			(*context).SelectedSoundset++
 		} else {
 			// wrap around
@@ -609,16 +609,26 @@ func main() {
 	log.Printf("Highest amplitude point found: %v\n", maxSize)
 
 	for i, track := range tracks {
-		fmt.Printf("%d: Normalizing length of %s to multiple of %d...\n", i, track.Sample.Name, longestTrackLength)
+		log.Printf("%d: Normalizing length of %s to multiple of %d...\n", i, track.Sample.Name, longestTrackLength)
 		currentLength := 0
-		remainingLength := 0
-		for _, sampleFrame := range *track.Sample.OutSamples {
-			remainingLength += len(sampleFrame)
-		}
 
-		fmt.Printf("Remaining Length: %d and currentLength: %d\n", remainingLength, currentLength)
-		if remainingLength == 0 && currentLength < longestTrackLength {
-			fmt.Println("We need to adjust the length of this sample!")
+		newOutSamples := make([]AudioFrame, len(*track.Sample.OutSamples))
+		log.Printf("currentLength: %d\n", currentLength)
+		if currentLength < longestTrackLength {
+			for currentLength < longestTrackLength {
+				for _, sampleFrame := range *track.Sample.OutSamples {
+					desiredLen := len(sampleFrame)
+					if len(sampleFrame)+currentLength > longestTrackLength {
+						// we don't want to go too far
+						desiredLen = longestTrackLength - currentLength
+					}
+
+					newOutSamples = append(newOutSamples, sampleFrame[:desiredLen])
+					currentLength += desiredLen
+				}
+			}
+
+			*track.Sample.OutSamples = newOutSamples
 		}
 	}
 
