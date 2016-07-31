@@ -605,54 +605,54 @@ func main() {
 		}
 	}
 
-	log.Printf("Longest Sample: %v\n", longestSample)
-	log.Printf("Highest amplitude point found: %v\n", maxSize)
+	// log.Printf("Longest Sample: %v\n", longestSample)
+	// log.Printf("Highest amplitude point found: %v\n", maxSize)
 
-	for i, track := range tracks {
-		go func(i int, track Track) {
-			// longest track doesn't need to be mangles
-			if track.Sample == longestSample {
-				log.Printf("Not normalizing %s\n", track.Sample.Name)
-				return
-			}
-			log.Printf("%d: Normalizing length of %s to multiple of %d(longest sample was %s)...\n", i, track.Sample.Name, longestTrackLength, longestSample.Name)
-			currentLength := 0
+	// for i, track := range tracks {
+	// 	go func(i int, track Track) {
+	// 		// longest track doesn't need to be mangles
+	// 		if track.Sample == longestSample {
+	// 			log.Printf("Not normalizing %s\n", track.Sample.Name)
+	// 			return
+	// 		}
+	// 		log.Printf("%d: Normalizing length of %s to multiple of %d(longest sample was %s)...\n", i, track.Sample.Name, longestTrackLength, longestSample.Name)
+	// 		currentLength := 0
 
-			newOutSamples := make([]AudioFrame, len(*(longestSample.OutSamples))+1)
-			log.Printf("currentLength: %d allocated %d frames vs %d\n", currentLength, len(*(longestSample.OutSamples)), len(*track.Sample.OutSamples))
-			if currentLength < longestTrackLength {
-				curFrame := 0
-				for currentLength < longestTrackLength {
-					log.Printf("Iter for %s\n", track.Sample.Name)
-					for _, sampleFrame := range *track.Sample.OutSamples {
-						curFrame++
-						desiredLen := len(sampleFrame)
+	// 		newOutSamples := make([]AudioFrame, len(*(longestSample.OutSamples))+1)
+	// 		log.Printf("currentLength: %d allocated %d frames vs %d\n", currentLength, len(*(longestSample.OutSamples)), len(*track.Sample.OutSamples))
+	// 		if currentLength < longestTrackLength {
+	// 			curFrame := 0
+	// 			for currentLength < longestTrackLength {
+	// 				log.Printf("Iter for %s\n", track.Sample.Name)
+	// 				for _, sampleFrame := range *track.Sample.OutSamples {
+	// 					curFrame++
+	// 					desiredLen := len(sampleFrame)
 
-						if len(sampleFrame)+currentLength >= longestTrackLength {
-							// we don't want to go too far
-							desiredLen = longestTrackLength - currentLength
-						}
+	// 					if len(sampleFrame)+currentLength >= longestTrackLength {
+	// 						// we don't want to go too far
+	// 						desiredLen = longestTrackLength - currentLength
+	// 					}
 
-						newOutSamples[curFrame] = sampleFrame[:desiredLen]
-						currentLength += desiredLen
+	// 					newOutSamples[curFrame] = sampleFrame[:desiredLen]
+	// 					currentLength += desiredLen
 
-						if currentLength >= longestTrackLength {
-							break
-						}
+	// 					if currentLength >= longestTrackLength {
+	// 						break
+	// 					}
 
-						// // this frame is incomplete, let's extend it
-						// if currentLength < longestTrackLength && desiredLen < FRAME_SIZE {
-						// 	log.Printf("Less than! Size: %d vs FRAME_SIZE %d\n", len(newOutSamples[curFrame]), FRAME_SIZE)
-						// 	newOutSamples[curFrame] = append(newOutSamples[curFrame], (*track.Sample.OutSamples)[0][:FRAME_SIZE-len(newOutSamples[curFrame])])
-						// }
-					}
-				}
+	// 					// // this frame is incomplete, let's extend it
+	// 					// if currentLength < longestTrackLength && desiredLen < FRAME_SIZE {
+	// 					// 	log.Printf("Less than! Size: %d vs FRAME_SIZE %d\n", len(newOutSamples[curFrame]), FRAME_SIZE)
+	// 					// 	newOutSamples[curFrame] = append(newOutSamples[curFrame], (*track.Sample.OutSamples)[0][:FRAME_SIZE-len(newOutSamples[curFrame])])
+	// 					// }
+	// 				}
+	// 			}
 
-				*track.Sample.OutSamples = newOutSamples
-				log.Printf("Normalized %s to %d\n", track.Sample.Name, currentLength)
-			}
-		}(i, track)
-	}
+	// 			*track.Sample.OutSamples = newOutSamples
+	// 			log.Printf("Normalized %s to %d\n", track.Sample.Name, currentLength)
+	// 		}
+	// 	}(i, track)
+	// }
 
 	// audioPointBuffer contains the calculated mixed audio signal for
 	// 1378 upcoming points -- 1/32 second at 44.1 kHz
