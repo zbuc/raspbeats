@@ -618,18 +618,20 @@ func main() {
 		currentLength := 0
 
 		newOutSamples := make([]AudioFrame, len(*(longestSample.OutSamples)))
-		log.Printf("currentLength: %d allocated %d frames vs %d\n", currentLength, len(*(longestSample.OutSamples)), len(track.Sample.OutSamples))
+		log.Printf("currentLength: %d allocated %d frames vs %d\n", currentLength, len(*(longestSample.OutSamples)), len(*track.Sample.OutSamples))
 		if currentLength < longestTrackLength {
+			curFrame := 0
 			for currentLength < longestTrackLength {
 				log.Printf("Iter for %s\n", track.Sample.Name)
 				for _, sampleFrame := range *track.Sample.OutSamples {
+					curFrame++
 					desiredLen := len(sampleFrame)
 					if len(sampleFrame)+currentLength > longestTrackLength {
 						// we don't want to go too far
 						desiredLen = longestTrackLength - currentLength
 					}
 
-					newOutSamples = append(newOutSamples, sampleFrame[:desiredLen])
+					newOutSamples[curFrame] = sampleFrame[:desiredLen]
 					currentLength += desiredLen
 				}
 			}
