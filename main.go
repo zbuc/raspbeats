@@ -632,13 +632,15 @@ func main() {
 						desiredLen = longestTrackLength - currentLength
 					}
 
+					log.Printf("Accessing curframe %d\n", curFrame)
 					newOutSamples[curFrame] = sampleFrame[:desiredLen]
 					currentLength += desiredLen
 
-					// this frame is incomplete, let's extend it
-					if currentLength < longestTrackLength && desiredLen < FRAME_SIZE {
-						log.Printf("Less than! Size: %d vs FRAME_SIZE %d\n", len(newOutSamples[curFrame]), FRAME_SIZE)
-					}
+					// // this frame is incomplete, let's extend it
+					// if currentLength < longestTrackLength && desiredLen < FRAME_SIZE {
+					// 	log.Printf("Less than! Size: %d vs FRAME_SIZE %d\n", len(newOutSamples[curFrame]), FRAME_SIZE)
+					// 	newOutSamples[curFrame] = append(newOutSamples[curFrame], (*track.Sample.OutSamples)[0][:FRAME_SIZE-len(newOutSamples[curFrame])])
+					// }
 				}
 			}
 
