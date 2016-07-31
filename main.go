@@ -496,7 +496,7 @@ func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 
 func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	if behavior.Behavior == "nextsoundset" {
-		if (*context).SelectedSoundset < (*context).MaxSoundset {
+		if (*context).SelectedSoundset < (*context).MaxSoundset-1 {
 			(*context).SelectedSoundset++
 		} else {
 			// wrap around
@@ -537,7 +537,11 @@ func main() {
 			quit = <-doneChan
 		}()
 
-		for {
+		// check every 1/4 second
+		timeToCheck := time.Millisecond * 250
+
+		ticker := time.NewTicker(timeToCheck)
+		for _ = range ticker.C {
 			for pin, behavior := range pins {
 				if pin.Read() == 0 {
 					triggerBehavior(behavior, screenContext)
@@ -552,8 +556,8 @@ func main() {
 
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
+	(*screenContext).MaxSoundset = len(part2.Keys()) - 1
 	for _, sampleSetName := range part2.Keys() {
-		(*screenContext).MaxSoundset++
 		log.Println(sampleSetName)
 		fileNames := part2.Get(sampleSetName).([]*toml.TomlTree)
 		for _, fileNameStruct := range fileNames {
