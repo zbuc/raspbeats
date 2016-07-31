@@ -774,7 +774,7 @@ func main() {
 		}
 	}()
 
-	ticker := time.NewTicker(timeToSendFrame)
+	ticker := time.NewTicker(timeToSendFrame / 2)
 	go func() {
 		quit := false
 		for _ = range ticker.C {
