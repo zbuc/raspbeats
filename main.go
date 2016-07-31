@@ -626,6 +626,7 @@ func main() {
 				for _, sampleFrame := range *track.Sample.OutSamples {
 					curFrame++
 					desiredLen := len(sampleFrame)
+
 					if len(sampleFrame)+currentLength > longestTrackLength {
 						// we don't want to go too far
 						desiredLen = longestTrackLength - currentLength
@@ -633,6 +634,11 @@ func main() {
 
 					newOutSamples[curFrame] = sampleFrame[:desiredLen]
 					currentLength += desiredLen
+
+					// this frame is incomplete, let's extend it
+					if currentLength < longestTrackLength && desiredLen < FRAME_SIZE {
+						log.Printf("Less than! Size: %d vs FRAME_SIZE %d\n", len(newOutSamples), FRAME_SIZE)
+					}
 				}
 			}
 
