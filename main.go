@@ -515,6 +515,26 @@ func main() {
 	pins := initGPIO(sampleSetConf.Get("GPIOConfigs").(*toml.TomlTree))
 	log.Printf("Got pin config: %v\n", pins)
 
+	GPIODoneChan := make(chan bool)
+	go func(pins GPIOPinBehaviors, doneChan chan bool) {
+		quit := false
+		go func() {
+			quit = <-doneChan
+		}()
+
+		for {
+			for pin, behavior := range pins {
+				if pin.Read() == 0 {
+					log.Printf("Triggering behavior %s\n", behavior)
+				}
+			}
+
+			if quit {
+				break
+			}
+		}
+	}(pins, GPIODoneChan)
+
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
 	for _, sampleSetName := range part2.Keys() {
@@ -648,9 +668,7 @@ func main() {
 	go func(doneChan chan bool) {
 		quit := false
 		go func() {
-			log.Println("Receiving playback quit")
 			quit = <-doneChan
-			log.Println("Received playback quit")
 		}()
 
 		for {
@@ -682,6 +700,7 @@ keyboardLoop:
 				log.Println("CTRL+C pressed")
 				log.Println("Sending playback done")
 				playbackDone <- true
+				GPIODoneChan <- true
 				log.Println("Breaking keyboardLoop")
 				break keyboardLoop
 			}
