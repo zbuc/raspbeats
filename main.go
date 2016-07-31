@@ -629,6 +629,7 @@ func main() {
 			}
 
 			*track.Sample.OutSamples = newOutSamples
+			log.Printf("Normalized to %d\n", currentLength)
 		}
 	}
 
