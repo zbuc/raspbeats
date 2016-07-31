@@ -609,7 +609,7 @@ func main() {
 	log.Printf("Highest amplitude point found: %v\n", maxSize)
 
 	for i, track := range tracks {
-		log.Printf("%d: Normalizing length of %s to multiple of %d...\n", i, track.Sample.Name, longestTrackLength)
+		log.Printf("%d: Normalizing length of %s to multiple of %d(longest sample was %s)...\n", i, track.Sample.Name, longestTrackLength, longestSample.Name)
 		currentLength := 0
 
 		newOutSamples := make([]AudioFrame, len(*track.Sample.OutSamples))
