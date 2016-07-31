@@ -479,13 +479,12 @@ func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 			panic(err)
 		}
 
-		pins[rpio.Pin(sk)] = GPIOBehavior{
+		pin := rpio.Pin(sk)
+		pins[pin] = GPIOBehavior{
 			Behavior: v.(string),
 		}
-	}
 
-	// set up each pin
-	for pin, _ := range pins {
+		// configure pin with PullUp and input mode
 		pin.Input()
 		pin.PullUp()
 	}
