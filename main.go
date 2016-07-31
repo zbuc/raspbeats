@@ -617,7 +617,7 @@ func main() {
 		log.Printf("%d: Normalizing length of %s to multiple of %d(longest sample was %s)...\n", i, track.Sample.Name, longestTrackLength, longestSample.Name)
 		currentLength := 0
 
-		newOutSamples := make([]AudioFrame, len(*longestSample.OutSamples))
+		newOutSamples := make([]AudioFrame, len(*(longestSample.OutSamples)))
 		log.Printf("currentLength: %d\n", currentLength)
 		if currentLength < longestTrackLength {
 			for currentLength < longestTrackLength {
