@@ -53,7 +53,7 @@ func GetOutSamples(audio *io.Reader, sampleRate int, numChans int) []AudioFrame 
 	if numChans == 2 {
 		log.Fatalln("Stereo unsupported. committing suicide because i don't feel like implementing this yet.")
 		for remaining := sampleRate; remaining > 0; remaining -= FRAME_SIZE {
-			out := make(AudioFrame, FRAME_SIZE)
+			out := make([]int16, FRAME_SIZE)
 			// slice out to be only the length of what we have left to return
 			if len(out) > remaining {
 				out = out[:remaining]
@@ -66,15 +66,15 @@ func GetOutSamples(audio *io.Reader, sampleRate int, numChans int) []AudioFrame 
 			chk(err)
 			for _, r := range out {
 				if math.Abs(float64(r)) > math.Abs(float64(maxSize)) {
-					maxSize = r
+					maxSize = int16(r)
 				}
 			}
-			outSamples = append(outSamples, out)
+			outSamples = append(outSamples, *ConvertPCMFrameToFloat(out))
 		}
 
 	} else {
 		for remaining := sampleRate; remaining > 0; remaining -= FRAME_SIZE {
-			out := make(AudioFrame, FRAME_SIZE)
+			out := make([]int16, FRAME_SIZE)
 			if len(out) > remaining {
 				out = out[:remaining]
 			}
@@ -86,22 +86,30 @@ func GetOutSamples(audio *io.Reader, sampleRate int, numChans int) []AudioFrame 
 			chk(err)
 			for _, r := range out {
 				if math.Abs(float64(r)) > math.Abs(float64(maxSize)) {
-					maxSize = r
+					maxSize = int16(r)
 				}
 			}
-			outSamples = append(outSamples, out)
+			outSamples = append(outSamples, *ConvertPCMFrameToFloat(out))
 		}
 	}
 
 	return outSamples
 }
 
-func applyMix(a int16, b int16) int16 {
-	return int16((1.0 / math.Sqrt2) * float64(a+b))
+func applyMix(a float32, b float32) float32 {
+	// if a == 0 {
+	// 	return b
+	// }
+
+	// if b == 0 {
+	// 	return a
+	// }
+
+	return (1.0 / math.Sqrt2) * float32(a+b)
 }
 
 // Mixes addedFrame * addedFrameVolumePercentage into baseFrame, modifying it in place
-func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePercentage float64) {
+func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePercentage float32) {
 	var longerFrame *AudioFrame
 	var shorterFrame *AudioFrame
 	if len(*baseFrame) > len(*addedFrame) {
@@ -113,17 +121,17 @@ func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePe
 	}
 
 	i := 0
-	var p int16
+	var p float32
 	for i, p = range *longerFrame {
 		if len(*shorterFrame) > i {
 			if longerFrame == addedFrame {
-				(*baseFrame)[i] = applyMix(int16(addedFrameVolumePercentage*float64(p)), (*shorterFrame)[i])
+				(*baseFrame)[i] = applyMix(addedFrameVolumePercentage*p, (*shorterFrame)[i])
 			} else {
-				(*baseFrame)[i] = applyMix(p, int16(addedFrameVolumePercentage*float64((*shorterFrame)[i])))
+				(*baseFrame)[i] = applyMix(p, addedFrameVolumePercentage*(*shorterFrame)[i])
 			}
 		} else {
 			if longerFrame == addedFrame {
-				(*baseFrame)[i] = applyMix(0, int16(addedFrameVolumePercentage*float64(p)))
+				(*baseFrame)[i] = applyMix(0, addedFrameVolumePercentage*p)
 			} else {
 				(*baseFrame)[i] = applyMix(p, 0)
 			}
@@ -131,12 +139,12 @@ func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePe
 	}
 }
 
-func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSampleVolumePercentage float64) {
+func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSampleVolumePercentage float32) {
 	// log.Println("MixSamples")
 	out := make([]AudioFrame, 0)
 	var longerSample *[]AudioFrame
 	var shorterSample *[]AudioFrame
-	shorterSampleVolume := 1.0
+	shorterSampleVolume := float32(1.0)
 	if len(*mixedSamples) > len(*addedSample) {
 		longerSample = mixedSamples
 		shorterSample = addedSample
@@ -152,9 +160,9 @@ func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSamp
 			// Naive algorithm:
 			// 		Does not protect against clipping (overflow)
 			if len(*shorterSample) > x && len((*shorterSample)[x]) > i {
-				outFrame[i] = p + int16(shorterSampleVolume*float64((*shorterSample)[x][i]))
+				outFrame[i] = p + shorterSampleVolume*(*shorterSample)[x][i]
 			} else {
-				outFrame[i] = int16(addedSampleVolumePercentage * float64(p))
+				outFrame[i] = addedSampleVolumePercentage * p
 			}
 		}
 
@@ -205,27 +213,27 @@ func GetAudio(f *os.File) (io.Reader, int, int) {
 	return audio, int(c.NumSamples), int(c.NumChans)
 }
 
-type AudioPoint int16
+type AudioPoint float32
 
-func playEmptyAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
+func playEmptyAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]float32, stream *portaudio.Stream) {
 	audioFrameBuffer.m.Lock()
 	defer audioFrameBuffer.m.Unlock()
 
-	nothing := make([]int16, FRAME_SIZE)
-	*out = ([]int16)(nothing)
+	nothing := make([]float32, FRAME_SIZE)
+	*out = ([]float32)(nothing)
 	err := stream.Write()
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
+func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]float32, stream *portaudio.Stream) {
 	audioFrameBuffer.m.Lock()
 	defer audioFrameBuffer.m.Unlock()
 
 	mixedAudio := audioFrameBuffer.GetFrame()
 
-	*out = ([]int16)(mixedAudio)
+	*out = ([]float32)(mixedAudio)
 	err := stream.Write()
 	if err != nil {
 		log.Println(err)
@@ -303,19 +311,19 @@ func zeroAudio(audio *AudioFrame) {
 
 var lineOffset = 10
 
-type AudioFrame []int16
+type AudioFrame []float32
 
 // http://www.martin-finke.de/blog/articles/audio-plugins-013-filter/
 type Filter struct {
-	buf0      float64
-	buf1      float64
+	buf0      float32
+	buf1      float32
 	Mode      int
-	Cutoff    float64
-	Resonance float64
+	Cutoff    float32
+	Resonance float32
 }
 
 // digital filtering info: http://www.drdobbs.com/parallel/digital-filtering-and-oversampling/184404066
-func (f *Filter) Process(inputSample float64) float64 {
+func (f *Filter) Process(inputSample float32) float32 {
 	//set feedback amount given f and q between 0 and 1
 	fb := f.Resonance + f.Resonance/(1.0-f.Cutoff)
 
@@ -325,7 +333,7 @@ func (f *Filter) Process(inputSample float64) float64 {
 	return f.buf1
 }
 
-func applyFilter(frame *[]float64, f *Filter) {
+func applyFilter(frame *AudioFrame, f *Filter) {
 	for i, p := range *frame {
 		(*frame)[i] = f.Process(p)
 	}
@@ -333,11 +341,11 @@ func applyFilter(frame *[]float64, f *Filter) {
 	return
 }
 
-func AddHeadroomToMixedFrames(mixedFrame *AudioFrame, trackCount int16) {
-	for i, p := range *mixedFrame {
-		(*mixedFrame)[i] = p / trackCount
-	}
-}
+// func AddHeadroomToMixedFrames(mixedFrame *AudioFrame, trackCount int16) {
+// 	for i, p := range *mixedFrame {
+// 		(*mixedFrame)[i] = p / trackCount
+// 	}
+// }
 
 // Grab next frame for all samples, perform mixing, add to buffer
 func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLength int, f *Filter) {
@@ -354,7 +362,7 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 	// mix every track together
 	for _, track := range *mixer.Tracks {
 		sample := track.Sample
-		volumePercentage := float64(track.Volume) / 100.0
+		volumePercentage := float32(track.Volume) / 100.0
 
 		if mixer.CurrentFrame < len(*sample.OutSamples) {
 			MixFrames(&mixedFrame, &(*sample.OutSamples)[mixer.CurrentFrame], volumePercentage)
@@ -371,12 +379,12 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 	// 	}
 	// }
 
-	floatFrame := ConvertPCMFrameToFloat(mixedFrame)
+	// floatFrame := ConvertPCMFrameToFloat(mixedFrame)
 
-	applyFilter(floatFrame, f)
+	applyFilter(&mixedFrame, f)
 
 	// XXX memory inefficient
-	mixedFrame = *ConvertFloatFrameToPCMFrame(*floatFrame)
+	// mixedFrame = *ConvertFloatFrameToPCMFrame(*floatFrame)
 
 	enqueueMixedAudioFrame(audioFrameBuffer, &mixedFrame)
 
@@ -442,7 +450,7 @@ func (b *AudioFrameRingBuffer) Capacity() int {
 	return b.r.Capacity()
 }
 
-func ConvertFloatFrameToPCMFrame(frameFloat []float64) *[]int16 {
+func ConvertFloatFrameToPCMFrame(frameFloat []float32) *[]int16 {
 	out := make([]int16, len(frameFloat))
 
 	for i, f := range frameFloat {
@@ -460,12 +468,12 @@ func ConvertFloatFrameToPCMFrame(frameFloat []float64) *[]int16 {
 	return &out
 }
 
-func ConvertPCMFrameToFloat(framePCM []int16) *[]float64 {
-	out := make([]float64, len(framePCM))
+func ConvertPCMFrameToFloat(framePCM []int16) *[]float32 {
+	out := make([]float32, len(framePCM))
 
 	for i, f := range framePCM {
 		// log.Printf("dividing %f by 32768.0\n", float64(f))
-		out[i] = float64(f) / 32768.0
+		out[i] = float32(f) / 32768.0
 
 		if out[i] > 1 {
 			out[i] = 1
@@ -587,7 +595,7 @@ func main() {
 	portaudio.Initialize()
 	defer portaudio.Terminate()
 
-	out := make([]int16, FRAME_SIZE)
+	out := make([]float32, FRAME_SIZE)
 	devs, err := portaudio.Devices()
 	if err != nil {
 		log.Printf("error enumerating devices: %v\n", err)
