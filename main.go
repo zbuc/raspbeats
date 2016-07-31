@@ -105,7 +105,8 @@ func applyMix(a float32, b float32) float32 {
 	// 	return a
 	// }
 
-	return (1.0 / math.Sqrt2) * float32(a+b)
+	return a + b
+	// return (1.0 / math.Sqrt2) * float32(a+b)
 }
 
 // Mixes addedFrame * addedFrameVolumePercentage into baseFrame, modifying it in place
@@ -131,46 +132,12 @@ func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePe
 			}
 		} else {
 			if longerFrame == addedFrame {
-				(*baseFrame)[i] = applyMix(0, addedFrameVolumePercentage*p)
+				(*baseFrame)[i] = addedFrameVolumePercentage * p
 			} else {
-				(*baseFrame)[i] = applyMix(p, 0)
+				(*baseFrame)[i] = p
 			}
 		}
 	}
-}
-
-func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSampleVolumePercentage float32) {
-	// log.Println("MixSamples")
-	out := make([]AudioFrame, 0)
-	var longerSample *[]AudioFrame
-	var shorterSample *[]AudioFrame
-	shorterSampleVolume := float32(1.0)
-	if len(*mixedSamples) > len(*addedSample) {
-		longerSample = mixedSamples
-		shorterSample = addedSample
-		shorterSampleVolume = addedSampleVolumePercentage
-	} else {
-		longerSample = addedSample
-		shorterSample = mixedSamples
-	}
-
-	for x, longerSampleFrame := range *longerSample {
-		outFrame := make(AudioFrame, len(longerSampleFrame))
-		for i, p := range longerSampleFrame {
-			// Naive algorithm:
-			// 		Does not protect against clipping (overflow)
-			if len(*shorterSample) > x && len((*shorterSample)[x]) > i {
-				outFrame[i] = p + shorterSampleVolume*(*shorterSample)[x][i]
-			} else {
-				outFrame[i] = addedSampleVolumePercentage * p
-			}
-		}
-
-		out = append(out, outFrame)
-	}
-
-	// log.Printf("Setting mixedSamples: %d\n", len(out))
-	*mixedSamples = out
 }
 
 func GetAudio(f *os.File) (io.Reader, int, int) {
@@ -369,15 +336,13 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 		}
 	}
 
+	// return (1.0 / math.Sqrt2) * float32(a+b)
+
 	// then we have to divide each mixed output sample by the total number of samples playing to create
 	// headroom
-	// for _, track := range *mixer.Tracks {
-	// 	sample := track.Sample
-
-	// 	if mixer.CurrentFrame < len(*sample.OutSamples) {
-	// 		AddHeadroomToMixedFrames(&mixedFrame, int16(len(*mixer.Tracks)))
-	// 	}
-	// }
+	for i, p := range mixedFrame {
+		mixedFrame[i] = (1.0 / math.Sqrt2) * p
+	}
 
 	// floatFrame := ConvertPCMFrameToFloat(mixedFrame)
 
