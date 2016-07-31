@@ -4,6 +4,7 @@ import (
 	"github.com/gordonklaus/portaudio"
 	"github.com/nsf/termbox-go"
 	"github.com/pelletier/go-toml"
+	"github.com/stianeikeland/go-rpio"
 	ring "github.com/zfjagann/golang-ring"
 
 	// "bytes"
@@ -454,9 +455,37 @@ func ConvertPCMFrameToFloat(framePCM []int16) *[]float32 {
 
 type SampleSet map[string][]Sample
 
+type GPIOBehavior int
+
+// maps a GPIO pin # to its associated behavior
+type GPIOPinBehaviors map[rpio.Pin]GPIOBehavior
+
+func initGPIO() GPIOPinBehaviors {
+	err := rpio.Open()
+
+	if err != nil {
+		log.Println("Error initializing GPIO", err)
+	}
+
+	// just hackily hardcoding these for now, should move to conf file
+	pins := make(GPIOPinBehaviors)
+	pins[rpio.Pin(18)] = 1
+
+	// set up each pin
+	for pin, _ := range pins {
+		pin.Input()
+		pin.PullUp()
+	}
+
+	return pins
+}
+
 func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
+
+	pins := initGPIO()
+	log.Println("Got pin config: %v\n", pins)
 
 	timeToSendFrame := time.Second / (SAMPLE_RATE / FRAME_SIZE)
 	fmt.Printf("%s second timer should do\n", timeToSendFrame)
