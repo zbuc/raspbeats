@@ -627,13 +627,13 @@ func main() {
 					curFrame++
 					desiredLen := len(sampleFrame)
 
-					if len(sampleFrame)+currentLength > longestTrackLength {
+					if len(sampleFrame)+currentLength >= longestTrackLength {
 						// we don't want to go too far
 						desiredLen = longestTrackLength - currentLength
 					}
 
 					log.Printf("Accessing curframe %d\n", curFrame)
-					newOutSamples[curFrame] = sampleFrame[:desiredLen]
+					newOutSamples[curFrame%len(*track.Sample.OutSamples)] = sampleFrame[:desiredLen]
 					currentLength += desiredLen
 
 					if currentLength >= longestTrackLength {
