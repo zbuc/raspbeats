@@ -280,7 +280,10 @@ func playEmptyAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, s
 
 	nothing := make([]int16, FRAME_SIZE)
 	*out = ([]int16)(nothing)
-	chk2(stream.Write(), *out)
+	err := stream.Write()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
@@ -290,7 +293,10 @@ func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream
 	mixedAudio := audioFrameBuffer.GetFrame()
 
 	*out = ([]int16)(mixedAudio)
-	chk2(stream.Write(), *out)
+	err := stream.Write()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 type Sample struct {
@@ -737,7 +743,7 @@ func main() {
 		return
 	}
 
-	p := portaudio.LowLatencyParameters(nil, devs[i])
+	p := portaudio.HighLatencyParameters(nil, devs[i])
 	//p.Output.Device = devs[i]
 	p.SampleRate = 44100.0
 	p.FramesPerBuffer = len(out)
@@ -943,15 +949,6 @@ type commonChunk struct {
 	NumSamples    int32
 	BitsPerSample int16
 	SampleRate    [10]byte
-}
-
-func chk2(err error, extra interface{}) {
-	if err != nil {
-		log.Println("Fatal error!")
-		log.Println(err)
-		log.Printf("Extra: %+v\n", extra)
-		panic(err)
-	}
 }
 
 func chk(err error) {
