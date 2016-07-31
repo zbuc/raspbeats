@@ -1,17 +1,27 @@
-  [[SampleSetConfigs.set1]]
-  fileNames = [
-  	"assets/samples/loops/soundset_1/drumloop.aiff",
-  	"assets/samples/loops/soundset_1/moog.aiff",
-  	"assets/samples/loops/soundset_1/horns.aiff",
-  ]
+[[SampleSetConfigs.set1]]
+fileNames = [
+	"assets/samples/loops/soundset_1/drumloop.aiff",
+	"assets/samples/loops/soundset_1/moog.aiff",
+	"assets/samples/loops/soundset_1/horns.aiff",
+]
 
-  [[SampleSetConfigs.set2]]
-  fileNames = [
-  	"assets/samples/loops/soundset_2/kick.aiff",
-  	"assets/samples/loops/soundset_2/snare.aiff",
-  	"assets/samples/loops/soundset_2/hihats.aiff",
-  	"assets/samples/loops/soundset_2/fx.aiff",
-  ]
+[[SampleSetConfigs.set2]]
+fileNames = [
+	"assets/samples/loops/soundset_2/kick.aiff",
+	"assets/samples/loops/soundset_2/snare.aiff",
+	"assets/samples/loops/soundset_2/hihats.aiff",
+	"assets/samples/loops/soundset_2/fx.aiff",
+]
 
-  [GPIOConfigs]
-  18 = "switchtrack_1"
+[[SampleSetConfigs.set3]]
+fileNames = [
+	"assets/samples/loops/soundset_3/kick.aiff",
+	"assets/samples/loops/soundset_3/snare.aiff",
+	"assets/samples/loops/soundset_3/hihats.aiff",
+	"assets/samples/loops/soundset_3/maracas.aiff",
+	"assets/samples/loops/soundset_3/housechords.aiff",
+	"assets/samples/loops/soundset_3/bass.aiff",
+]
+
+[GPIOConfigs]
+18 = "switchtrack_1"
