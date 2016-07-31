@@ -419,9 +419,6 @@ func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 }
 
 func (b *AudioFrameRingBuffer) GetFrame() AudioFrame {
-	b.m.Lock()
-	defer b.m.Unlock()
-
 	b.produced--
 
 	frame := b.r.Dequeue()
