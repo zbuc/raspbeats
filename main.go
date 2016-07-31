@@ -616,6 +616,7 @@ func main() {
 		log.Printf("currentLength: %d\n", currentLength)
 		if currentLength < longestTrackLength {
 			for currentLength < longestTrackLength {
+				log.Printf("Iter for %s\n", track.Sample.Name)
 				for _, sampleFrame := range *track.Sample.OutSamples {
 					desiredLen := len(sampleFrame)
 					if len(sampleFrame)+currentLength > longestTrackLength {
