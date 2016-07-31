@@ -509,6 +509,21 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 
 		log.Printf("Selected soundset %d\n", (*context).SelectedSoundset)
 	}
+
+	if behavior.Behavior == "prevsoundset" {
+		if (*context).SelectedSoundset > 1 {
+			(*context).SelectedSoundset--
+		} else {
+			// wrap around
+			(*context).SelectedSoundset = (*context).MaxSoundset
+		}
+
+		log.Printf("Selected soundset %d\n", (*context).SelectedSoundset)
+	}
+
+	if behavior.Behavior == "begin" {
+		log.Println("BEGIN!")
+	}
 }
 
 func playTrack(track Track, out *[]float32, stream *portaudio.Stream) {

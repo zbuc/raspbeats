@@ -25,3 +25,15 @@ fileNames = [
 
 [GPIOConfigs]
 18 = "nextsoundset"
+23 = "prevsoundset"
+12 = "toggle_0"
+16 = "toggle_1"
+21 = "toggle_2"
+24 = "toggle_3"
+25 = "toggle_4"
+20 = "toggle_5"
+4 = "toggle_6"
+17 = "toggle_7"
+27 = "toggle_8"
+22 = "toggle_9"
+6 = "begin"
