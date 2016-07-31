@@ -465,6 +465,7 @@ type SampleSet map[string][]Sample
 type GPIOBehavior struct {
 	LastTriggered time.Time
 	Behavior      string
+	Pin           int
 }
 
 // maps a GPIO pin # to its associated behavior
@@ -488,6 +489,7 @@ func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 		pin := rpio.Pin(sk)
 		pins[pin] = GPIOBehavior{
 			Behavior: v.(string),
+			Pin:      sk,
 		}
 
 		// configure pin with PullUp and input mode
@@ -520,10 +522,6 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 
 		log.Printf("Selected soundset %d\n", (*context).SelectedSoundset)
 	}
-
-	if behavior.Behavior == "begin" {
-		log.Println("BEGIN!")
-	}
 }
 
 func playTrack(track Track, out *[]float32, stream *portaudio.Stream) {
@@ -553,6 +551,18 @@ func playIntro(out *[]float32, stream *portaudio.Stream) {
 	}
 
 	playTrack(track, out, stream)
+}
+
+var playbackAllowed bool = false
+
+func allowPlayback() {
+	log.Println("Allowibg playback")
+	playbackAllowed = true
+}
+
+func restartExperience() {
+	log.Println("Restarting experience for the next person")
+	playbackAllowed = false
 }
 
 func main() {
@@ -609,9 +619,6 @@ func main() {
 
 	log.Printf("Stream info: %+v\n", stream.Info())
 
-	// play intro sound on secondary audio device
-	playIntro(&out, stream)
-
 	pins := initGPIO(sampleSetConf.Get("GPIOConfigs").(*toml.TomlTree))
 	log.Printf("Got pin config: %v\n", pins)
 
@@ -629,7 +636,17 @@ func main() {
 		for _ = range ticker.C {
 			for pin, behavior := range pins {
 				if pin.Read() == 0 {
+					if behavior.Pin == 6 {
+						// allow playback to continue
+						allowPlayback()
+					}
+
 					triggerBehavior(behavior, screenContext)
+				} else if pin.Read() == 1 {
+					if behavior.Pin == 6 {
+						// stop playback
+						restartExperience()
+					}
 				}
 			}
 
@@ -638,6 +655,9 @@ func main() {
 			}
 		}
 	}(pins, GPIODoneChan)
+
+	// play intro sound on secondary audio device
+	playIntro(&out, stream)
 
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
