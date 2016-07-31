@@ -527,6 +527,40 @@ func main() {
 	confFileName := os.Args[1]
 	sampleSetConf, err := toml.LoadFile(confFileName)
 
+	portaudio.Initialize()
+	defer portaudio.Terminate()
+
+	out := make([]float32, FRAME_SIZE)
+	devs, err := portaudio.Devices()
+	if err != nil {
+		log.Printf("error enumerating devices: %v\n", err)
+		return
+	}
+	for x, g := range devs {
+		log.Printf("%d: %+v\n", x, g)
+	}
+	i := 2
+	if i < 0 {
+		return
+	}
+
+	p := portaudio.HighLatencyParameters(nil, devs[i])
+	p.SampleRate = 44100.0
+	p.FramesPerBuffer = len(out)
+	p.Output.Channels = 1
+	stream, err := portaudio.OpenStream(p, &out)
+	chk(err)
+	defer stream.Close()
+	chk(stream.Start())
+	defer stream.Stop()
+
+	h, err := portaudio.DefaultHostApi()
+	chk(err)
+	log.Printf("Default Output Device Info: %+v\n", h.DefaultOutputDevice)
+	log.Printf("Selected Output Device Info: %+v\n", devs[i])
+
+	log.Printf("Stream info: %+v\n", stream.Info())
+
 	pins := initGPIO(sampleSetConf.Get("GPIOConfigs").(*toml.TomlTree))
 	log.Printf("Got pin config: %v\n", pins)
 
@@ -670,39 +704,6 @@ func main() {
 	screenContext.Filter = f
 
 	//assume 44100 sample rate, mono, 16 bit
-	portaudio.Initialize()
-	defer portaudio.Terminate()
-
-	out := make([]float32, FRAME_SIZE)
-	devs, err := portaudio.Devices()
-	if err != nil {
-		log.Printf("error enumerating devices: %v\n", err)
-		return
-	}
-	for x, g := range devs {
-		log.Printf("%d: %+v\n", x, g)
-	}
-	i := 2
-	if i < 0 {
-		return
-	}
-
-	p := portaudio.HighLatencyParameters(nil, devs[i])
-	p.SampleRate = 44100.0
-	p.FramesPerBuffer = len(out)
-	p.Output.Channels = 1
-	stream, err := portaudio.OpenStream(p, &out)
-	chk(err)
-	defer stream.Close()
-	chk(stream.Start())
-	defer stream.Stop()
-
-	h, err := portaudio.DefaultHostApi()
-	chk(err)
-	log.Printf("Default Output Device Info: %+v\n", h.DefaultOutputDevice)
-	log.Printf("Selected Output Device Info: %+v\n", devs[i])
-
-	log.Printf("Stream info: %+v\n", stream.Info())
 
 	err = termbox.Init()
 	if err != nil {
