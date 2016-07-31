@@ -102,7 +102,6 @@ func applyMix(a int16, b int16) int16 {
 
 // Mixes addedFrame * addedFrameVolumePercentage into baseFrame, modifying it in place
 func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePercentage float64) {
-	// log.Println("MixSamples")
 	var longerFrame *AudioFrame
 	var shorterFrame *AudioFrame
 	if len(*baseFrame) > len(*addedFrame) {
@@ -113,34 +112,6 @@ func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePe
 		shorterFrame = baseFrame
 	}
 
-	// unfiltered := make([][]int32, len(*longerSample)*4)
-	// i := 0
-	// for ; i < len(*shorterSample); i++ {
-	// 	unfiltered[i] = (*shorterSample)[i]
-
-	// }
-	// int* unfiltered = (int *)malloc(lengthOfLongPcmInShorts*4);
-	// int i;
-	// for(i = 0; i < lengthOfShortPcmInShorts; i++){
-	//     unfiltered[i] = shortPcm[i] + longPcm[i];
-	// }
-	// for(; i < lengthOfLongPcmInShorts; i++){
-	//      unfiltered[i] = longPcm[i];
-	// }
-
-	// int max = 0;
-	// for(int i = 0; i < lengthOfLongPcmInShorts; i++){
-	//    int val = unfiltered[i];
-	//    if(abs(val) > max)
-	//       max = val;
-	// }
-
-	// short int *newPcm = (short int *)malloc(lengthOfLongPcmInShorts*2);
-	// for(int i = 0; i < lengthOfLongPcmInShorts; i++){
-	//    newPcm[i] = (unfilted[i]/max) * MAX_SHRT;
-	// }
-
-	// log.Printf("Shorter sample volume: %f, added sample volume: %f", shorterSampleVolume, addedSampleVolumePercentage)
 	i := 0
 	var p int16
 	for i, p = range *longerFrame {
@@ -158,16 +129,6 @@ func MixFrames(baseFrame *AudioFrame, addedFrame *AudioFrame, addedFrameVolumePe
 			}
 		}
 	}
-
-	// unnecessary because of zeroing before mix?
-	// // fill any extra space in the frame with emptiness
-	// if i < len(*baseFrame) {
-	// 	for ; i < len(*baseFrame); i++ {
-	// 		(*baseFrame)[i] = 0
-	// 	}
-	// }
-
-	// log.Printf("Setting mixedSamples: %d\n", len(out))
 }
 
 func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSampleVolumePercentage float64) {
@@ -185,34 +146,6 @@ func MixSamples(mixedSamples *[]AudioFrame, addedSample *[]AudioFrame, addedSamp
 		shorterSample = mixedSamples
 	}
 
-	// unfiltered := make([][]int32, len(*longerSample)*4)
-	// i := 0
-	// for ; i < len(*shorterSample); i++ {
-	// 	unfiltered[i] = (*shorterSample)[i]
-
-	// }
-	// int* unfiltered = (int *)malloc(lengthOfLongPcmInShorts*4);
-	// int i;
-	// for(i = 0; i < lengthOfShortPcmInShorts; i++){
-	//     unfiltered[i] = shortPcm[i] + longPcm[i];
-	// }
-	// for(; i < lengthOfLongPcmInShorts; i++){
-	//      unfiltered[i] = longPcm[i];
-	// }
-
-	// int max = 0;
-	// for(int i = 0; i < lengthOfLongPcmInShorts; i++){
-	//    int val = unfiltered[i];
-	//    if(abs(val) > max)
-	//       max = val;
-	// }
-
-	// short int *newPcm = (short int *)malloc(lengthOfLongPcmInShorts*2);
-	// for(int i = 0; i < lengthOfLongPcmInShorts; i++){
-	//    newPcm[i] = (unfilted[i]/max) * MAX_SHRT;
-	// }
-
-	// log.Printf("Shorter sample volume: %f, added sample volume: %f", shorterSampleVolume, addedSampleVolumePercentage)
 	for x, longerSampleFrame := range *longerSample {
 		outFrame := make(AudioFrame, len(longerSampleFrame))
 		for i, p := range longerSampleFrame {
@@ -390,52 +323,6 @@ func (f *Filter) Process(inputSample float64) float64 {
 	f.buf0 = f.buf0 + f.Cutoff*(inputSample-f.buf0+fb*(f.buf0-f.buf1))
 	f.buf1 = f.buf1 + f.Cutoff*(f.buf0-f.buf1)
 	return f.buf1
-
-	// chamberlin method
-	// http://www.musicdsp.org/archive.php?classid=3#142
-	//
-	// Nyquist rate = 2 * f.Cutoff
-	//
-	// to oversample (https://en.wikipedia.org/wiki/Oversampling)
-	// the filter at factor N, we need to sample with a frequency of N times
-	// the nyquist rate
-	//
-	// but nah, we'll just hardcode the filter's sampling to be the regular
-	// sampling rate for the master output buffer for now
-	// q := 1 / f.Resonance
-	// f_1 := 2 * math.Pi * f.Cutoff / SAMPLE_RATE
-
-	// lpf := f.buf1 + f_1*f.buf0
-	// hpf := inputSample - lpf - q*f.buf0
-	// bpf := f_1*hpf + f.buf0
-
-	// f.buf0 = bpf
-	// f.buf1 = lpf
-
-	// return lpf
-
-	// naive method
-	// //set feedback amount given f and q between 0 and 1
-	// fb := f.Resonance + f.Resonance/(1.0-f.Cutoff)
-
-	// //for each sample...
-	// f.buf0 = f.buf0 + f.Cutoff*(inputSample-f.buf0+fb*(f.buf0-f.buf1))
-	// f.buf1 = f.buf1 + f.Cutoff*(f.buf0-f.buf1)
-	// return f.buf1
-
-	// vv couldn't get these working quite right
-	// f.buf0 += f.Cutoff * (inputSample)
-	// f.buf1 += f.Cutoff * (f.buf0 - f.buf1)
-
-	// if f.Mode == LOW_PASS {
-	// 	return f.buf1
-	// } else if f.Mode == HIGH_PASS {
-	// 	return inputSample - f.buf0
-	// } else if f.Mode == BAND_PASS {
-	// 	return f.buf0 - f.buf1
-	// } else {
-	// 	return 0.0
-	// }
 }
 
 func applyFilter(frame *[]float64, f *Filter) {
@@ -464,24 +351,14 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 		mixer.CurrentFrame = 0
 	}
 
-	// log.Println("Step 2: Adding processed tracks together naively")
 	// mix every track together
 	for _, track := range *mixer.Tracks {
 		sample := track.Sample
-		// volume := track.Volume
 		volumePercentage := float64(track.Volume) / 100.0
-		// fmt.Printf("volume: %f\n", volumePercentage)
 
-		// tbLine(fmt.Sprintf("%+v\n", *mixedAudio))
-		// tbLine(fmt.Sprintf("%+v\n", *sample.OutSamples))
-		// log.Printf("outSamples: %d\n", len(*sample.OutSamples))
-		// log.Printf("%v\n", (*sample.OutSamples)[0][1])
-		// log.Printf("Accessing index %d of %d\n", mixer.CurrentFrame, len(*sample.OutSamples))
 		if mixer.CurrentFrame < len(*sample.OutSamples) {
 			MixFrames(&mixedFrame, &(*sample.OutSamples)[mixer.CurrentFrame], volumePercentage)
 		}
-		// log.Printf("mixedAudio: %d\n", len(*mixedAudio))
-		// log.Printf("%v\n", (*mixedAudio)[0][1])
 	}
 
 	// then we have to divide each mixed output sample by the total number of samples playing to create
@@ -494,9 +371,6 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 	// 	}
 	// }
 
-	// transFreq := 10000.0
-	// lpfWindow := create1TransSinc(FRAME_SIZE, transFreq, SAMPLE_RATE, LOW_PASS)
-	// log.Printf("before mixedframe: %+v\n", mixedFrame)
 	floatFrame := ConvertPCMFrameToFloat(mixedFrame)
 
 	applyFilter(floatFrame, f)
@@ -504,20 +378,13 @@ func runMixer(mixer *Mixer, audioFrameBuffer *AudioFrameRingBuffer, maxFrameLeng
 	// XXX memory inefficient
 	mixedFrame = *ConvertFloatFrameToPCMFrame(*floatFrame)
 
-	// log.Printf("after mixedFrame: %+v\n", mixedFrame)
-
-	// log.Println("Enqueing mixed audio frame...")
 	enqueueMixedAudioFrame(audioFrameBuffer, &mixedFrame)
 
 	mixer.CurrentFrame++
-	// log.Println("Done")
 }
 
 func enqueueMixedAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, mixedFrame *AudioFrame) {
-	// log.Println("Adding mixed audio frame ptr...")
-	// log.Printf("%+v\n", frame)
 	audioFrameBuffer.AddFrame(*mixedFrame)
-	// log.Println("Added.")
 }
 
 func SetupLogger() *os.File {
@@ -552,10 +419,8 @@ func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 }
 
 func (b *AudioFrameRingBuffer) GetFrame() AudioFrame {
-	// log.Println("GetFrame lock")
-	// b.m.Lock()
-	// log.Println("GetFrame locked")
-	// defer b.m.Unlock()
+	b.m.Lock()
+	defer b.m.Unlock()
 
 	b.produced--
 
@@ -719,11 +584,7 @@ func main() {
 		Tracks:     &tracks,
 	}
 	f := &Filter{Mode: LOW_PASS, Cutoff: 0.39, Resonance: 0.27}
-	// in Hz
-	// f := &Filter{Mode: LOW_PASS, Cutoff: 145.0, Resonance: 0.5}
 	screenContext.Filter = f
-
-	// fmt.Println(mixedAudio)
 
 	//assume 44100 sample rate, mono, 16 bit
 	portaudio.Initialize()
@@ -744,12 +605,10 @@ func main() {
 	}
 
 	p := portaudio.HighLatencyParameters(nil, devs[i])
-	//p.Output.Device = devs[i]
 	p.SampleRate = 44100.0
 	p.FramesPerBuffer = len(out)
 	p.Output.Channels = 1
 	stream, err := portaudio.OpenStream(p, &out)
-	// stream, err := portaudio.OpenDefaultStream(0, 1, SAMPLE_RATE, len(out), &out)
 	chk(err)
 	defer stream.Close()
 	chk(stream.Start())
@@ -784,20 +643,16 @@ func main() {
 		}()
 
 		for {
-			// log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
 			if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
-				// log.Println("runMixer!")
 				// runMixer runs the mixer and populates the ring buffer
 				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			}
 
 			// and we only try to play frames when we have at least 1 waiting
 			if audioFrameBuffer.produced >= 1 {
-				// log.Println("If")
 				playAudioFrame(&audioFrameBuffer, &out, stream)
 			} else {
 				// just play nothingness i guess
-				// log.Println("Else")
 				playEmptyAudioFrame(&audioFrameBuffer, &out, stream)
 			}
 
