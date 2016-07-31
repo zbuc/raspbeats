@@ -507,6 +507,34 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	}
 }
 
+func playTrack(track Track, out *[]float32, stream *portaudio.Stream) {
+	for _, frame := range *track.Sample.OutSamples {
+		(*out) = frame
+		_ = stream.Write()
+	}
+}
+
+func playIntro(out *[]float32, stream *portaudio.Stream) {
+	fileName := "assets/samples/intro.aiff"
+	f, err := os.Open(fileName)
+	chk(err)
+	defer f.Close()
+	audio, sampleRate, numChans := GetAudio(f)
+	outSamples := GetOutSamples(&audio, sampleRate, numChans)
+	sample := &Sample{
+		SampleRate: sampleRate,
+		Audio:      &audio,
+		OutSamples: &outSamples,
+		Name:       fileName,
+	}
+	track := Track{
+		Sample: sample,
+		Volume: 100,
+	}
+
+	playTrack(track, out, stream)
+}
+
 func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
@@ -560,6 +588,9 @@ func main() {
 	log.Printf("Selected Output Device Info: %+v\n", devs[i])
 
 	log.Printf("Stream info: %+v\n", stream.Info())
+
+	// play intro sound on secondary audio device
+	playIntro(&out, stream)
 
 	pins := initGPIO(sampleSetConf.Get("GPIOConfigs").(*toml.TomlTree))
 	log.Printf("Got pin config: %v\n", pins)
