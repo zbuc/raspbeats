@@ -12,3 +12,6 @@
   	"assets/samples/loops/soundset_2/hihats.aiff",
   	"assets/samples/loops/soundset_2/fx.aiff",
   ]
+
+  [GPIOConfigs]
+  18 = "switchtrack_1"

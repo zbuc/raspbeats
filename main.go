@@ -17,6 +17,7 @@ import (
 	// "io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 )
 
@@ -455,12 +456,15 @@ func ConvertPCMFrameToFloat(framePCM []int16) *[]float32 {
 
 type SampleSet map[string][]Sample
 
-type GPIOBehavior int
+type GPIOBehavior struct {
+	LastTriggered time.Time
+	Behavior      string
+}
 
 // maps a GPIO pin # to its associated behavior
 type GPIOPinBehaviors map[rpio.Pin]GPIOBehavior
 
-func initGPIO() GPIOPinBehaviors {
+func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 	err := rpio.Open()
 
 	if err != nil {
@@ -469,7 +473,16 @@ func initGPIO() GPIOPinBehaviors {
 
 	// just hackily hardcoding these for now, should move to conf file
 	pins := make(GPIOPinBehaviors)
-	pins[rpio.Pin(18)] = 1
+	for k, v := range conf.ToMap() {
+		sk, err := strconv.Atoi(k)
+		if err != nil {
+			panic(err)
+		}
+
+		pins[rpio.Pin(sk)] = GPIOBehavior{
+			Behavior: v.(string),
+		}
+	}
 
 	// set up each pin
 	for pin, _ := range pins {
@@ -483,9 +496,6 @@ func initGPIO() GPIOPinBehaviors {
 func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
-
-	pins := initGPIO()
-	log.Println("Got pin config: %v\n", pins)
 
 	timeToSendFrame := time.Second / (SAMPLE_RATE / FRAME_SIZE)
 	fmt.Printf("%s second timer should do\n", timeToSendFrame)
@@ -502,6 +512,9 @@ func main() {
 
 	confFileName := os.Args[1]
 	sampleSetConf, err := toml.LoadFile(confFileName)
+
+	pins := initGPIO(sampleSetConf.Get("GPIOConfigs").(*toml.TomlTree))
+	log.Printf("Got pin config: %v\n", pins)
 
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
