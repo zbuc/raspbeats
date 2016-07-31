@@ -618,7 +618,7 @@ func main() {
 		currentLength := 0
 
 		newOutSamples := make([]AudioFrame, len(*(longestSample.OutSamples)))
-		log.Printf("currentLength: %d\n", currentLength)
+		log.Printf("currentLength: %d allocated %d frames vs %d\n", currentLength, len(*(longestSample.OutSamples)), len(track.Sample.OutSamples))
 		if currentLength < longestTrackLength {
 			for currentLength < longestTrackLength {
 				log.Printf("Iter for %s\n", track.Sample.Name)
