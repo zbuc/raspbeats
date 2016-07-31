@@ -12,7 +12,7 @@ import (
 	"io"
 	"math"
 	"strings"
-	// "time"
+	"time"
 	// "io/ioutil"
 	"log"
 	"os"
@@ -274,6 +274,12 @@ func GetAudio(f *os.File) (io.Reader, int, int) {
 
 type AudioPoint int16
 
+func playEmptyAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
+	nothing := make([]int16, FRAME_SIZE)
+	*out = ([]int16)(nothing)
+	chk2(stream.Write(), *out)
+}
+
 func playAudioFrame(audioFrameBuffer *AudioFrameRingBuffer, out *[]int16, stream *portaudio.Stream) {
 	mixedAudio := audioFrameBuffer.GetFrame()
 
@@ -520,14 +526,14 @@ type AudioPointRingBuffer struct {
 type AudioFrameRingBuffer struct {
 	r        ring.Ring
 	m        sync.Mutex
-	Produced int
+	produced int
 }
 
 func (b *AudioFrameRingBuffer) AddFrame(frame AudioFrame) {
 	b.m.Lock()
 	defer b.m.Unlock()
 
-	b.Produced++
+	b.produced++
 
 	// was passing pointers here but maybe not? don't *want* to realloc...
 	b.r.Enqueue(frame)
@@ -537,13 +543,20 @@ func (b *AudioFrameRingBuffer) GetFrame() AudioFrame {
 	b.m.Lock()
 	defer b.m.Unlock()
 
-	b.Produced--
+	b.produced--
 
 	frame := b.r.Dequeue()
 	if frame == nil {
 		return nil
 	}
 	return frame.(AudioFrame)
+}
+
+func (b *AudioFrameRingBuffer) Produced() int {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	return b.produced
 }
 
 func (b *AudioFrameRingBuffer) Capacity() int {
@@ -595,6 +608,9 @@ type SampleSet map[string][]Sample
 func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
+
+	timeToSendFrame := time.Second / (SAMPLE_RATE / FRAME_SIZE)
+	fmt.Printf("%s second timer should do\n", timeToSendFrame)
 
 	if len(os.Args) != 2 {
 		log.Println("missing required argument: soundsets.toml")
@@ -747,22 +763,28 @@ func main() {
 
 	doneChan := make(chan bool)
 
+	ticker := time.NewTicker(timeToSendFrame)
 	go func() {
 		quit := false
-		for {
+		for _ = range ticker.C {
 			// log.Printf("mixer l00p P: %d C: %d\n", audioFrameBuffer.Produced, audioFrameBuffer.Capacity())
-			if audioFrameBuffer.Produced < audioFrameBuffer.Capacity() {
+			if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
 				// log.Println("runMixer!")
 				// runMixer runs the mixer and populates the ring buffer
 				runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f)
 			}
 
 			// and we only try to play frames when we have at least 2 waiting
-			if audioFrameBuffer.Produced >= 2 {
+			if audioFrameBuffer.produced >= 2 {
 				if quit {
 					break
 				}
+				log.Println("If")
 				playAudioFrame(&audioFrameBuffer, &out, stream)
+			} else {
+				// just play nothingness i guess
+				log.Println("Else")
+				playEmptyAudioFrame(&audioFrameBuffer, &out, stream)
 			}
 
 			go func() {
