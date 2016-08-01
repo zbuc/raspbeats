@@ -627,6 +627,7 @@ func main() {
 		quit := false
 		go func() {
 			quit = <-doneChan
+			log.Println("Received done message on GPIO done chan")
 		}()
 
 		// check every 1/4 second
@@ -636,18 +637,16 @@ func main() {
 		for _ = range ticker.C {
 			log.Printf("Checking pinz")
 			for pin, behavior := range pins {
-				if pin.Read() == 0 {
-					if behavior.Pin == 6 {
+				if behavior.Pin == 6 {
+					if pin.Read() == 0 {
 						// allow playback to continue
 						allowPlayback()
-					}
-
-					triggerBehavior(behavior, screenContext)
-				} else if pin.Read() == 1 {
-					if behavior.Pin == 6 {
-						// stop playback
+					} else {
 						restartExperience()
-						log.Println("Restarted.")
+					}
+				} else {
+					if pin.Read() == 0 {
+						triggerBehavior(behavior, screenContext)
 					}
 				}
 			}
