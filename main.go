@@ -644,23 +644,34 @@ func main() {
 		// check every 1/4 second
 		timeToCheck := time.Millisecond * 250
 
+		// hacking this in here because i don't have time to do it well
+		combos := [][]int{{4, 27}, {4, 6}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
+		comboPins := make([][]rpio.Pin, len(combos))
+		for i, pair := range combos {
+			comboPins[i] = []rpio.Pin{rpio.Pin(pair[0]), rpio.Pin(pair[1])}
+		}
+
 		ticker := time.NewTicker(timeToCheck)
 		for _ = range ticker.C {
 			log.Printf("Checking pinz")
-			for pin, behavior := range pins {
-				if behavior.Pin == 6 {
-					if pin.Read() == 0 {
-						// allow playback to continue
-						allowPlayback()
-					} else {
-						restartExperience()
-					}
-				} else {
-					if pin.Read() == 0 {
-						triggerBehavior(behavior, screenContext)
-					}
-				}
+			for i, pair := range combos {
+				log.Printf("Pair %d pressed(%v)\n", i, pair)
 			}
+
+			// for pin, behavior := range pins {
+			// 	if behavior.Pin == 6 {
+			// 		if pin.Read() == 0 {
+			// 			// allow playback to continue
+			// 			allowPlayback()
+			// 		} else {
+			// 			restartExperience()
+			// 		}
+			// 	} else {
+			// 		if pin.Read() == 0 {
+			// 			triggerBehavior(behavior, screenContext)
+			// 		}
+			// 	}
+			// }
 
 			if quit {
 				log.Printf("Quitting ticker")
