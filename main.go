@@ -553,14 +553,25 @@ func playIntro(out *[]float32, stream *portaudio.Stream) {
 	playTrack(track, out, stream)
 }
 
+var playbackmtx sync.Mutex
 var playbackAllowed bool = false
 
+func isPlaybackAllowed() bool {
+	playbackmtx.Lock()
+	defer playbackmtx.Unlock()
+	return playbackAllowed
+}
+
 func allowPlayback() {
+	playbackmtx.Lock()
+	defer playbackmtx.Unlock()
 	log.Println("Allowibg playback")
 	playbackAllowed = true
 }
 
 func restartExperience() {
+	playbackmtx.Lock()
+	defer playbackmtx.Unlock()
 	log.Println("Restarting experience for the next person")
 	playbackAllowed = false
 }
@@ -799,7 +810,7 @@ func main() {
 		}()
 
 		for {
-			if playbackAllowed {
+			if isPlaybackAllowed() {
 				if audioFrameBuffer.produced < audioFrameBuffer.Capacity() {
 					// runMixer runs the mixer and populates the ring buffer
 					runMixer(mixer, &audioFrameBuffer, len(*longestSample.OutSamples), f, screenContext.SelectedSoundset)
