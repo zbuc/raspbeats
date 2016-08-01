@@ -647,11 +647,13 @@ func main() {
 					if behavior.Pin == 6 {
 						// stop playback
 						restartExperience()
+						log.Println("Restarted.")
 					}
 				}
 			}
 
 			if quit {
+				log.Printf("Quitting ticker")
 				break
 			}
 		}
