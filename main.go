@@ -634,6 +634,7 @@ func main() {
 
 		ticker := time.NewTicker(timeToCheck)
 		for _ = range ticker.C {
+			log.Printf("Checking pinz")
 			for pin, behavior := range pins {
 				if pin.Read() == 0 {
 					if behavior.Pin == 6 {
