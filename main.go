@@ -645,7 +645,8 @@ func main() {
 		// timeToCheck := time.Millisecond * 125
 
 		// hacking this in here because i don't have time to do it well
-		combos := [][]int{{4, 27}, {4, 6}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
+		// combos := [][]int{{4, 27}, {4, 6}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
+		combos := [][]int{{4, 27}, {4, 17}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
 		comboPins := make([][]rpio.Pin, len(combos))
 		for i, pair := range combos {
 			comboPins[i] = []rpio.Pin{rpio.Pin(pair[0]), rpio.Pin(pair[1])}
@@ -665,7 +666,10 @@ func main() {
 					pair[1].Input()
 					pair[1].PullDown()
 
-					if pair[1].Read() == 1 {
+					if (pair[0] != comboPins[1][0] || pair[1] != comboPins[1][1]) && pair[1].Read() == 1 {
+						log.Printf("Pair %d pressed(%v)\n", i, pair)
+					} else if pair[0] == comboPins[1][0] && pair[1] == comboPins[1][1] && pair[1].Read() == 0 {
+						// this one is wired backwards
 						log.Printf("Pair %d pressed(%v)\n", i, pair)
 					}
 					pair[0].Write(0)
