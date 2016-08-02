@@ -654,16 +654,31 @@ func main() {
 		ticker := time.NewTicker(timeToCheck)
 		for _ = range ticker.C {
 			log.Printf("Checking pinz")
+			last0 := -1
 			for i, pair := range comboPins {
-				pair[0].Output()
-				pair[1].Input()
-				pair[1].PullDown()
-				pair[0].Write(1)
+				if pair[0] != last0 {
+					// we need to fire some electrons through pair[0]
+					// and receive at pair[1]
+					pair[0].Output()
+					pair[0].Write(1)
+					pair[1].Input()
+					pair[1].PullDown()
 
-				if pair[1].Read() == 1 {
-					log.Printf("Pair %d pressed(%v)\n", i, pair)
+					if pair[1].Read() == 1 {
+						log.Printf("Pair %d pressed(%v)\n", i, pair)
+					}
+					pair[0].Write(0)
+				} else {
+					// we know pair[0] is still active!
+					pair[1].Input()
+					pair[1].PullDown()
+
+					if pair[1].Read() == 1 {
+						log.Printf("Pair %d pressed(%v)\n", i, pair)
+					}
 				}
-				pair[0].Write(0)
+
+				last0 = pair[0]
 			}
 
 			// for pin, behavior := range pins {
