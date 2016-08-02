@@ -642,7 +642,7 @@ func main() {
 		}()
 
 		// check every 1/8 second
-		timeToCheck := time.Millisecond * 125
+		// timeToCheck := time.Millisecond * 125
 
 		// hacking this in here because i don't have time to do it well
 		combos := [][]int{{4, 27}, {4, 6}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
@@ -655,7 +655,7 @@ func main() {
 		// for _ = range ticker.C {
 		for {
 			log.Printf("Checking pinz")
-			last0 := -1
+			var last0 rpio.Pin
 			for i, pair := range comboPins {
 				if pair[0] != last0 {
 					// we need to fire some electrons through pair[0]
