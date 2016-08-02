@@ -654,8 +654,15 @@ func main() {
 		ticker := time.NewTicker(timeToCheck)
 		for _ = range ticker.C {
 			log.Printf("Checking pinz")
-			for i, pair := range combos {
-				log.Printf("Pair %d pressed(%v)\n", i, pair)
+			for i, pair := range comboPins {
+				pair[0].Output()
+				pair[1].Input()
+				pair[1].PullDown()
+				pair[0].Write(1)
+
+				if pair[1].Read() == 1 {
+					log.Printf("Pair %d pressed(%v)\n", i, pair)
+				}
 			}
 
 			// for pin, behavior := range pins {
