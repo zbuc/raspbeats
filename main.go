@@ -642,7 +642,7 @@ func main() {
 		}()
 
 		// check every 1/8 second
-		timeToCheck := time.Second * (1 / 8)
+		timeToCheck := time.Millisecond * 125
 
 		// hacking this in here because i don't have time to do it well
 		combos := [][]int{{4, 27}, {4, 6}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
