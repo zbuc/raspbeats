@@ -651,8 +651,9 @@ func main() {
 			comboPins[i] = []rpio.Pin{rpio.Pin(pair[0]), rpio.Pin(pair[1])}
 		}
 
-		ticker := time.NewTicker(timeToCheck)
-		for _ = range ticker.C {
+		// ticker := time.NewTicker(timeToCheck)
+		// for _ = range ticker.C {
+		for {
 			log.Printf("Checking pinz")
 			last0 := -1
 			for i, pair := range comboPins {
