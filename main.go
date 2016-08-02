@@ -655,7 +655,6 @@ func main() {
 		// ticker := time.NewTicker(timeToCheck)
 		// for _ = range ticker.C {
 		for {
-			log.Printf("Checking pinz")
 			var last0 rpio.Pin
 			for i, pair := range comboPins {
 				if pair[0] != last0 {
@@ -666,11 +665,17 @@ func main() {
 					pair[1].Input()
 					pair[1].PullDown()
 
-					if (pair[0] != comboPins[1][0] || pair[1] != comboPins[1][1]) && pair[1].Read() == 1 {
-						log.Printf("Pair %d pressed(%v)\n", i, pair)
-					} else if pair[0] == comboPins[1][0] && pair[1] == comboPins[1][1] && pair[1].Read() == 0 {
-						// this one is wired backwards
-						log.Printf("Pair %d pressed(%v)\n", i, pair)
+					if pair[0] != comboPins[1][0] || pair[1] != comboPins[1][1] {
+						// these read positive
+						if pair[1].Read() == 1 {
+							log.Printf("Pair %d pressed(%v)\n", i, pair)
+						}
+					} else if pair[0] == comboPins[1][0] && pair[1] == comboPins[1][1] {
+						log.Printf("Checking %v\n", pair)
+						if pair[1].Read() == 0 {
+							// this one is wired backwards
+							log.Printf("Pair %d pressed(%v)\n", i, pair)
+						}
 					}
 					pair[0].Write(0)
 				} else {
