@@ -663,6 +663,7 @@ func main() {
 				if pair[1].Read() == 1 {
 					log.Printf("Pair %d pressed(%v)\n", i, pair)
 				}
+				pair[0].Write(0)
 			}
 
 			// for pin, behavior := range pins {
