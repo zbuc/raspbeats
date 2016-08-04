@@ -554,6 +554,21 @@ func playIntro() {
 var playbackmtx sync.Mutex
 var playbackAllowed bool = false
 
+func toggleVolume(trackNum int, context *ScreenContext) {
+	playbackmtx.Lock()
+	defer playbackmtx.Unlock()
+
+	if trackNum >= len(*context.Tracks) {
+		log.Printf("Can't increment invalid trackNum %d\n", trackNum)
+	}
+
+	if (*context.Tracks)[trackNum].Volume > 50 {
+		(*context.Tracks)[trackNum].Volume = 0
+	} else {
+		(*context.Tracks)[trackNum].Volume = 100
+	}
+}
+
 func isPlaybackAllowed() bool {
 	playbackmtx.Lock()
 	defer playbackmtx.Unlock()
@@ -682,12 +697,30 @@ func main() {
 						phoneLifted = false
 					}
 				} else if pair[1].Read() == 1 {
-					log.Printf("Pair %d pressed(%v)\n", i, pair)
-
 					if i == 0 {
 						triggerBehavior(GPIOBehavior{Behavior: "nextsoundset", Pin: 0}, screenContext)
 					} else if i == 2 {
 						triggerBehavior(GPIOBehavior{Behavior: "prevsoundset", Pin: 2}, screenContext)
+					} else if i == 1 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 0}, screenContext)
+					} else if i == 3 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 1}, screenContext)
+					} else if i == 4 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 2}, screenContext)
+					} else if i == 5 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 3}, screenContext)
+					} else if i == 6 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 4}, screenContext)
+					} else if i == 7 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 5}, screenContext)
+					} else if i == 8 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 6}, screenContext)
+					} else if i == 9 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 7}, screenContext)
+					} else if i == 10 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 8}, screenContext)
+					} else if i == 11 {
+						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 9}, screenContext)
 					}
 				}
 
