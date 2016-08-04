@@ -543,7 +543,8 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 		log.Printf("Selected soundset %d\n", (*context).SelectedSoundset)
 	}
 
-	if behavior.Behavior == "toggleTrack" {
+	if behavior.Behavior == "toggleTrack" && behavior.Pin != 0 {
+		// pin 0 is messed up right now, hack
 		log.Printf("toggling %d\n", behavior.Pin)
 		toggleVolume(behavior.Pin, context)
 	}
