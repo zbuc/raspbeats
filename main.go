@@ -516,13 +516,14 @@ func switchCutoff(context *ScreenContext) {
 
 func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	// one quarter second delay between changes
+	longAgo := time.Now().Add(1 * time.Second)
 	then := time.Now().Add(-250 * time.Millisecond)
 	if lastTriggeredBehaviors[behavior.Behavior].After(then) {
 		return
 	}
 
 	if behavior.Behavior == "nextsoundset" {
-		if lastTriggeredBehaviors["switchCutoff"].After(then) {
+		if lastTriggeredBehaviors["switchCutoff"].After(longAgo) {
 			// these two are glitchy on the board
 			return
 		}
@@ -538,7 +539,7 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	}
 
 	if behavior.Behavior == "prevsoundset" {
-		if lastTriggeredBehaviors["switchCutoff"].After(then) {
+		if lastTriggeredBehaviors["switchCutoff"].After(longAgo) {
 			// these two are glitchy on the board
 			return
 		}
@@ -560,7 +561,8 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	}
 
 	if behavior.Behavior == "switchCutoff" {
-		if lastTriggeredBehaviors["nextsoundset"].After(then) || lastTriggeredBehaviors["prevsoundset"].After(then) {
+		if lastTriggeredBehaviors["nextsoundset"].After(longAgo) || lastTriggeredBehaviors["prevsoundset"].After(longAgo) {
+			fmt.Println("Yawn")
 			// these two are glitchy on the board
 			return
 		}
