@@ -13,6 +13,7 @@ import (
 	"io"
 	"math"
 	"os/exec"
+	"os/signal"
 	"time"
 	// "io/ioutil"
 	"log"
@@ -671,7 +672,7 @@ func main() {
 		// when the phone is put back down, wait for it to be lifted again and repeat
 
 		// check every 1/8 second
-		// timeToCheck := time.Millisecond * 125
+		timeToCheck := time.Millisecond * 125
 
 		// hacking this in here because i don't have time to do it well
 		// combos := [][]int{{4, 27}, {4, 6}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
@@ -681,9 +682,8 @@ func main() {
 			comboPins[i] = []rpio.Pin{rpio.Pin(pair[0]), rpio.Pin(pair[1])}
 		}
 
-		// ticker := time.NewTicker(timeToCheck)
-		// for _ = range ticker.C {
-		for {
+		ticker := time.NewTicker(timeToCheck)
+		for _ = range ticker.C {
 			for i, pair := range comboPins {
 				// we need to fire some electrons through pair[0]
 				// and receive at pair[1]
@@ -875,17 +875,17 @@ func main() {
 
 	//assume 44100 sample rate, mono, 16 bit
 
-	err = termbox.Init()
-	if err != nil {
-		panic(err)
-	}
-	defer termbox.Close()
+	// err = termbox.Init()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer termbox.Close()
 
-	termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
+	// termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
 
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-	termbox.Flush()
-	redrawAll(screenContext)
+	// termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	// termbox.Flush()
+	// redrawAll(screenContext)
 
 	playbackDone := make(chan bool)
 	go func(doneChan chan bool) {
@@ -917,83 +917,91 @@ func main() {
 		}
 	}(playbackDone)
 
-keyboardLoop:
-	for {
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			if ev.Key == termbox.KeyCtrlC {
-				log.Println("CTRL+C pressed")
-				log.Println("Sending playback done")
-				playbackDone <- true
-				GPIODoneChan <- true
-				log.Println("Breaking keyboardLoop")
-				break keyboardLoop
-			}
-
-			if ev.Key == termbox.KeyArrowUp {
-				if screenContext.SelectedIndex > 0 {
-					screenContext.SelectedIndex--
-				}
-			}
-
-			if ev.Key == termbox.KeyArrowDown {
-				if screenContext.SelectedIndex < len(*screenContext.Tracks)-1 {
-					screenContext.SelectedIndex++
-				}
-			}
-
-			if ev.Ch == 'u' {
-				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume < 100 {
-					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume += 10
-				}
-			}
-
-			if ev.Ch == 'd' {
-				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume > 0 {
-					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume -= 10
-				}
-			}
-
-			if ev.Ch == 'm' {
-				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 100
-			}
-
-			if ev.Ch == 'c' {
-				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 0
-			}
-
-			if ev.Ch == 't' {
-				(*screenContext.Filter).Cutoff += 0.01
-				if (*screenContext.Filter).Cutoff >= 1.0 {
-					(*screenContext.Filter).Cutoff = 0.999999
-				}
-			}
-
-			if ev.Ch == 'r' {
-				(*screenContext.Filter).Cutoff -= 0.01
-				if (*screenContext.Filter).Cutoff < 0.0 {
-					(*screenContext.Filter).Cutoff = 0.0
-				}
-			}
-
-			if ev.Ch == 'g' {
-				(*screenContext.Filter).Resonance += 0.01
-				if (*screenContext.Filter).Resonance >= 1.0 {
-					(*screenContext.Filter).Resonance = 0.999999
-				}
-			}
-
-			if ev.Ch == 'h' {
-				(*screenContext.Filter).Resonance -= 0.01
-				if (*screenContext.Filter).Resonance < 0.0 {
-					(*screenContext.Filter).Resonance = 0.0
-				}
-			}
-		case termbox.EventError:
-			panic(ev.Err)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for _ = range c {
+			playbackDone <- true
+			GPIODoneChan <- true
 		}
-		redrawAll(screenContext)
-	}
+	}()
+	// keyboardLoop:
+	// 	for {
+	// 		switch ev := termbox.PollEvent(); ev.Type {
+	// 		case termbox.EventKey:
+	// 			if ev.Key == termbox.KeyCtrlC {
+	// 				log.Println("CTRL+C pressed")
+	// 				log.Println("Sending playback done")
+	// 				playbackDone <- true
+	// 				GPIODoneChan <- true
+	// 				log.Println("Breaking keyboardLoop")
+	// 				break keyboardLoop
+	// 			}
+
+	// 			if ev.Key == termbox.KeyArrowUp {
+	// 				if screenContext.SelectedIndex > 0 {
+	// 					screenContext.SelectedIndex--
+	// 				}
+	// 			}
+
+	// 			if ev.Key == termbox.KeyArrowDown {
+	// 				if screenContext.SelectedIndex < len(*screenContext.Tracks)-1 {
+	// 					screenContext.SelectedIndex++
+	// 				}
+	// 			}
+
+	// 			if ev.Ch == 'u' {
+	// 				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume < 100 {
+	// 					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume += 10
+	// 				}
+	// 			}
+
+	// 			if ev.Ch == 'd' {
+	// 				if (*screenContext.Tracks)[screenContext.SelectedIndex].Volume > 0 {
+	// 					(*screenContext.Tracks)[screenContext.SelectedIndex].Volume -= 10
+	// 				}
+	// 			}
+
+	// 			if ev.Ch == 'm' {
+	// 				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 100
+	// 			}
+
+	// 			if ev.Ch == 'c' {
+	// 				(*screenContext.Tracks)[screenContext.SelectedIndex].Volume = 0
+	// 			}
+
+	// 			if ev.Ch == 't' {
+	// 				(*screenContext.Filter).Cutoff += 0.01
+	// 				if (*screenContext.Filter).Cutoff >= 1.0 {
+	// 					(*screenContext.Filter).Cutoff = 0.999999
+	// 				}
+	// 			}
+
+	// 			if ev.Ch == 'r' {
+	// 				(*screenContext.Filter).Cutoff -= 0.01
+	// 				if (*screenContext.Filter).Cutoff < 0.0 {
+	// 					(*screenContext.Filter).Cutoff = 0.0
+	// 				}
+	// 			}
+
+	// 			if ev.Ch == 'g' {
+	// 				(*screenContext.Filter).Resonance += 0.01
+	// 				if (*screenContext.Filter).Resonance >= 1.0 {
+	// 					(*screenContext.Filter).Resonance = 0.999999
+	// 				}
+	// 			}
+
+	// 			if ev.Ch == 'h' {
+	// 				(*screenContext.Filter).Resonance -= 0.01
+	// 				if (*screenContext.Filter).Resonance < 0.0 {
+	// 					(*screenContext.Filter).Resonance = 0.0
+	// 				}
+	// 			}
+	// 		case termbox.EventError:
+	// 			panic(ev.Err)
+	// 		}
+	// 		redrawAll(screenContext)
+	// 	}
 }
 
 func readChunk(r readerAtSeeker) (id ID, data *io.SectionReader, err error) {
