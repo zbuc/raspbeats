@@ -562,16 +562,22 @@ func toggleVolume(trackNum int, context *ScreenContext) {
 	playbackmtx.Lock()
 	defer playbackmtx.Unlock()
 
-	if trackNum >= len(*context.Tracks) {
-		log.Printf("Can't increment invalid trackNum %d\n", trackNum)
-		return
+	i := 0
+	for j, track := range *context.Tracks {
+		if track.Soundset != context.SelectedSoundset {
+			continue
+		}
+
+		i++
+		if i == trackNum {
+			if (*context.Tracks)[j].Volume > 50 {
+				(*context.Tracks)[j].Volume = 0
+			} else {
+				(*context.Tracks)[j].Volume = 100
+			}
+		}
 	}
 
-	if (*context.Tracks)[trackNum].Volume > 50 {
-		(*context.Tracks)[trackNum].Volume = 0
-	} else {
-		(*context.Tracks)[trackNum].Volume = 100
-	}
 }
 
 func isPlaybackAllowed() bool {
