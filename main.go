@@ -568,6 +568,9 @@ func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
 
+	// play intro sound on secondary audio device
+	playIntro()
+
 	timeToSendFrame := time.Second / (SAMPLE_RATE / FRAME_SIZE)
 	fmt.Printf("%s second timer should do\n", timeToSendFrame)
 
@@ -681,9 +684,6 @@ func main() {
 			}
 		}
 	}(pins, GPIODoneChan)
-
-	// play intro sound on secondary audio device
-	playIntro()
 
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
