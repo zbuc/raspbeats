@@ -13,7 +13,6 @@ import (
 	"io"
 	"math"
 	"os/exec"
-	"strings"
 	"time"
 	// "io/ioutil"
 	"log"
