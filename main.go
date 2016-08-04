@@ -501,7 +501,15 @@ func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 	return pins
 }
 
+var lastTriggeredBehaviors = make(map[string]time.Time)
+
 func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
+	// one quarter second delay between changes
+	then := time.Now().Add(-250 * time.Millisecond)
+	if lastTriggeredBehaviors[behavior.Behavior].After(then) {
+		return
+	}
+
 	if behavior.Behavior == "nextsoundset" {
 		if (*context).SelectedSoundset < (*context).MaxSoundset {
 			(*context).SelectedSoundset++
@@ -523,6 +531,8 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 
 		log.Printf("Selected soundset %d\n", (*context).SelectedSoundset)
 	}
+
+	lastTriggeredBehaviors[behavior.Behavior] = time.Now()
 }
 
 func playTrack(track Track, out *[]float32, stream *portaudio.Stream) {
@@ -673,6 +683,12 @@ func main() {
 					}
 				} else if pair[1].Read() == 1 {
 					log.Printf("Pair %d pressed(%v)\n", i, pair)
+
+					if i == 0 {
+						triggerBehavior(GPIOBehavior{Behavior: "nextsoundset", Pin: 0}, screenContext)
+					} else if i == 2 {
+						triggerBehavior(GPIOBehavior{Behavior: "prevsoundset", Pin: 2}, screenContext)
+					}
 				}
 
 				pair[0].Write(0)
