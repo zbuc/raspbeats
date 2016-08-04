@@ -532,6 +532,10 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 		log.Printf("Selected soundset %d\n", (*context).SelectedSoundset)
 	}
 
+	if behavior.Behavior == "toggleTrack" {
+		toggleVolume(behavior.Pin, context)
+	}
+
 	lastTriggeredBehaviors[behavior.Behavior] = time.Now()
 }
 
@@ -771,10 +775,7 @@ func main() {
 					OutSamples: &outSamples,
 					Name:       fileName.(string),
 				}
-				volume := 0
-				if strings.Contains(fileName.(string), "fx") {
-					volume = 100
-				}
+				volume := 100
 				track := Track{
 					Sample:   sample,
 					Volume:   volume,
