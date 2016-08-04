@@ -671,7 +671,7 @@ func main() {
 		// when the phone is put back down, wait for it to be lifted again and repeat
 
 		// check every 1/8 second
-		timeToCheck := time.Millisecond * 125
+		// timeToCheck := time.Millisecond * 125
 
 		// hacking this in here because i don't have time to do it well
 		// combos := [][]int{{4, 27}, {4, 6}, {4, 19}, {17, 27}, {17, 6}, {17, 19}, {27, 5}, {22, 13}, {22, 19}, {5, 6}, {5, 19}, {26, 18}, {12, 16}}
@@ -681,8 +681,9 @@ func main() {
 			comboPins[i] = []rpio.Pin{rpio.Pin(pair[0]), rpio.Pin(pair[1])}
 		}
 
-		ticker := time.NewTicker(timeToCheck)
-		for _ = range ticker.C {
+		// ticker := time.NewTicker(timeToCheck)
+		// for _ = range ticker.C {
+		for {
 			for i, pair := range comboPins {
 				// we need to fire some electrons through pair[0]
 				// and receive at pair[1]
