@@ -600,6 +600,8 @@ func main() {
 	defer portaudio.Terminate()
 
 	out := make([]float32, FRAME_SIZE)
+	// out for our secondary audio device
+	headsetOut := make([]float32, FRAME_SIZE)
 	devs, err := portaudio.Devices()
 	if err != nil {
 		log.Printf("error enumerating devices: %v\n", err)
@@ -613,11 +615,17 @@ func main() {
 		return
 	}
 
+	headsetP := portaudio.HighLatencyParameters(nil, h.DefaultOutputDevice)
+	headsetP.FramesPerBuffer = len(headsetOut)
+	headsetP.Output.Channels = 1
+	headsetStream, err := portaudio.OpenStream(headsetP, &headsetOut)
+
 	p := portaudio.HighLatencyParameters(nil, devs[i])
 	p.SampleRate = 44100.0
 	p.FramesPerBuffer = len(out)
 	p.Output.Channels = 1
 	stream, err := portaudio.OpenStream(p, &out)
+
 	chk(err)
 	defer stream.Close()
 	chk(stream.Start())
@@ -694,7 +702,7 @@ func main() {
 	}(pins, GPIODoneChan)
 
 	// play intro sound on secondary audio device
-	playIntro(&out, stream)
+	playIntro(&headsetOut, headsetStream)
 
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
