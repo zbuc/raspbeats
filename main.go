@@ -601,8 +601,6 @@ func main() {
 		return
 	}
 
-	h, err := portaudio.DefaultHostApi()
-
 	p := portaudio.HighLatencyParameters(nil, devs[i])
 	p.SampleRate = 44100.0
 	p.FramesPerBuffer = len(out)
@@ -614,7 +612,6 @@ func main() {
 	chk(stream.Start())
 	defer stream.Stop()
 
-	log.Printf("Default Output Device Info: %+v\n", h.DefaultOutputDevice)
 	log.Printf("Selected Output Device Info: %+v\n", devs[i])
 
 	log.Printf("Stream info: %+v\n", stream.Info())
