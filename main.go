@@ -503,6 +503,17 @@ func initGPIO(conf *toml.TomlTree) GPIOPinBehaviors {
 
 var lastTriggeredBehaviors = make(map[string]time.Time)
 
+func switchCutoff(context *ScreenContext) {
+	playbackmtx.Lock()
+	defer playbackmtx.Unlock()
+
+	if (*context.Filter).Cutoff >= 1 {
+		(*context.Filter).Cutoff = 0.39
+	} else {
+		(*context.Filter).Cutoff += 0.15
+	}
+}
+
 func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	// one quarter second delay between changes
 	then := time.Now().Add(-250 * time.Millisecond)
@@ -535,6 +546,10 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	if behavior.Behavior == "toggleTrack" {
 		log.Printf("toggling %d\n", behavior.Pin)
 		toggleVolume(behavior.Pin, context)
+	}
+
+	if behavior.Behavior == "switchCutoff" {
+		switchCutoff(context)
 	}
 
 	lastTriggeredBehaviors[behavior.Behavior] = time.Now()
@@ -711,7 +726,7 @@ func main() {
 					if i == 0 {
 						triggerBehavior(GPIOBehavior{Behavior: "nextsoundset", Pin: 0}, screenContext)
 					} else if i == 2 {
-						triggerBehavior(GPIOBehavior{Behavior: "prevsoundset", Pin: 2}, screenContext)
+						triggerBehavior(GPIOBehavior{Behavior: "switchCutoff", Pin: 2}, screenContext)
 					} else if i == 1 {
 						triggerBehavior(GPIOBehavior{Behavior: "toggleTrack", Pin: 0}, screenContext)
 					} else if i == 3 {
