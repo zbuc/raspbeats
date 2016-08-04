@@ -532,7 +532,7 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	}
 
 	if behavior.Behavior == "toggleTrack" {
-		log.Println("toggling %d\n", behavior.Pin)
+		log.Printf("toggling %d\n", behavior.Pin)
 		toggleVolume(behavior.Pin, context)
 	}
 
