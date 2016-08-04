@@ -1,8 +1,15 @@
 [[SampleSetConfigs.set1]]
 fileNames = [
-	"assets/samples/loops/soundset_1/drumloop.aiff",
-	"assets/samples/loops/soundset_1/moog.aiff",
-	"assets/samples/loops/soundset_1/horns.aiff",
+	"assets/samples/loops/soundset_1/claps.aiff",
+	"assets/samples/loops/soundset_1/fx.aiff",
+	"assets/samples/loops/soundset_1/hightom.aiff",
+	"assets/samples/loops/soundset_1/hihats.aiff",
+	"assets/samples/loops/soundset_1/kick.aiff",
+	"assets/samples/loops/soundset_1/lowtom.aiff",
+	"assets/samples/loops/soundset_1/midtom.aiff",
+	"assets/samples/loops/soundset_1/ride.aiff",
+	"assets/samples/loops/soundset_1/rimshot.aiff",
+	"assets/samples/loops/soundset_1/shaker.aiff",
 ]
 
 [[SampleSetConfigs.set2]]
@@ -11,6 +18,12 @@ fileNames = [
 	"assets/samples/loops/soundset_2/snare.aiff",
 	"assets/samples/loops/soundset_2/hihats.aiff",
 	"assets/samples/loops/soundset_2/fx.aiff",
+	"assets/samples/loops/soundset_2/303.aiff",
+	"assets/samples/loops/soundset_2/bleep1.aiff",
+	"assets/samples/loops/soundset_2/bleep2.aiff",
+	"assets/samples/loops/soundset_2/bleep3.aiff",
+	"assets/samples/loops/soundset_2/bleep4.aiff",
+	"assets/samples/loops/soundset_2/bleep5.aiff",
 ]
 
 [[SampleSetConfigs.set3]]
@@ -21,6 +34,10 @@ fileNames = [
 	"assets/samples/loops/soundset_3/maracas.aiff",
 	"assets/samples/loops/soundset_3/housechords.aiff",
 	"assets/samples/loops/soundset_3/bass.aiff",
+	"assets/samples/loops/soundset_3/conga1.aiff",
+	"assets/samples/loops/soundset_3/conga2.aiff",
+	"assets/samples/loops/soundset_3/conga3.aiff",
+	"assets/samples/loops/soundset_3/crash.aiff",
 ]
 
 [GPIOConfigs]
