@@ -11,15 +11,15 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"math"
+	"os"
 	"os/exec"
 	"os/signal"
-	"time"
-	// "io/ioutil"
-	"log"
-	"os"
 	"strconv"
 	"sync"
+	"time"
 )
 
 const (
@@ -637,6 +637,8 @@ func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
 
+	log.SetOutput(ioutil.Discard)
+
 	timeToSendFrame := time.Second / (SAMPLE_RATE / FRAME_SIZE)
 	fmt.Printf("%s second timer should do\n", timeToSendFrame)
 
@@ -954,7 +956,7 @@ func main() {
 	for _ = range c {
 		playbackDone <- true
 		GPIODoneChan <- true
-		return
+		break
 	}
 	// keyboardLoop:
 	// 	for {
