@@ -14,7 +14,6 @@ import (
 	"math"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 	// "io/ioutil"
 	"log"
@@ -536,19 +535,10 @@ func playTrack(track Track, out *[]float32, stream *portaudio.Stream) {
 func playIntro() {
 	fileName := "assets/samples/intro.aiff"
 
-	binary, lookErr := exec.LookPath("aplay")
-	if lookErr != nil {
-		panic(lookErr)
-	}
+	cmd := exec.Command("aplay", "-fS16_BE", "-r44100", "-c1", fileName)
 
-	args := []string{"aplay", "-fS16_BE", "-r44100", "-c1", fileName}
-
-	env := os.Environ()
-
-	execErr := syscall.Exec(binary, args, env)
-	if execErr != nil {
-		panic(execErr)
-	}
+	cmd.Start()
+	cmd.Wait()
 }
 
 var playbackmtx sync.Mutex
