@@ -954,6 +954,7 @@ func main() {
 	for _ = range c {
 		playbackDone <- true
 		GPIODoneChan <- true
+		return
 	}
 	// keyboardLoop:
 	// 	for {
