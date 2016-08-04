@@ -522,6 +522,11 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	}
 
 	if behavior.Behavior == "nextsoundset" {
+		if lastTriggeredBehaviors["switchCutoff"].After(then) {
+			// these two are glitchy on the board
+			return
+		}
+
 		if (*context).SelectedSoundset < (*context).MaxSoundset {
 			(*context).SelectedSoundset++
 		} else {
@@ -533,6 +538,11 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	}
 
 	if behavior.Behavior == "prevsoundset" {
+		if lastTriggeredBehaviors["switchCutoff"].After(then) {
+			// these two are glitchy on the board
+			return
+		}
+
 		if (*context).SelectedSoundset > 1 {
 			(*context).SelectedSoundset--
 		} else {
@@ -550,6 +560,10 @@ func triggerBehavior(behavior GPIOBehavior, context *ScreenContext) {
 	}
 
 	if behavior.Behavior == "switchCutoff" {
+		if lastTriggeredBehaviors["nextsoundset"].After(then) || lastTriggeredBehaviors["prevsoundset"].After(then) {
+			// these two are glitchy on the board
+			return
+		}
 		switchCutoff(context)
 	}
 
