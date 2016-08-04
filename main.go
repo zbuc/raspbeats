@@ -919,12 +919,10 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	go func() {
-		for _ = range c {
-			playbackDone <- true
-			GPIODoneChan <- true
-		}
-	}()
+	for _ = range c {
+		playbackDone <- true
+		GPIODoneChan <- true
+	}
 	// keyboardLoop:
 	// 	for {
 	// 		switch ev := termbox.PollEvent(); ev.Type {
