@@ -564,6 +564,7 @@ func toggleVolume(trackNum int, context *ScreenContext) {
 
 	if trackNum >= len(*context.Tracks) {
 		log.Printf("Can't increment invalid trackNum %d\n", trackNum)
+		return
 	}
 
 	if (*context.Tracks)[trackNum].Volume > 50 {
