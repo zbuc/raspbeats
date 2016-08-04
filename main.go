@@ -568,9 +568,6 @@ func main() {
 	loggerFile := SetupLogger()
 	defer loggerFile.Close()
 
-	// play intro sound on secondary audio device
-	playIntro()
-
 	timeToSendFrame := time.Second / (SAMPLE_RATE / FRAME_SIZE)
 	fmt.Printf("%s second timer should do\n", timeToSendFrame)
 
@@ -633,6 +630,13 @@ func main() {
 			log.Println("Received done message on GPIO done chan")
 		}()
 
+		// state for whether the phone is lifted or not
+		phoneLifted := false
+
+		// while the phone is not lifted, we wait
+		// when the phone is lifted, play the intro, then begin the main loop
+		// when the phone is put back down, wait for it to be lifted again and repeat
+
 		// check every 1/8 second
 		// timeToCheck := time.Millisecond * 125
 
@@ -656,7 +660,21 @@ func main() {
 				pair[1].PullDown()
 
 				// these read positive
-				if pair[1].Read() == 1 {
+				if !phoneLifted && i == 12 {
+					if pair[1].Read() == 1 {
+						// this is the headset lift
+						playIntro()
+						allowPlayback()
+						phoneLifted = true
+					}
+				} else if phoneLifted && i == 12 {
+					// putting the phone back down
+					if pair[1].Read() == 0 {
+						// they put it back
+						restartExperience()
+						phoneLifted = false
+					}
+				} else if pair[1].Read() == 1 {
 					log.Printf("Pair %d pressed(%v)\n", i, pair)
 				}
 
