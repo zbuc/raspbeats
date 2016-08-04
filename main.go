@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 	// "io/ioutil"
 	"log"
@@ -531,26 +533,22 @@ func playTrack(track Track, out *[]float32, stream *portaudio.Stream) {
 	}
 }
 
-func playIntro(out *[]float32, stream *portaudio.Stream) {
+func playIntro() {
 	fileName := "assets/samples/intro.aiff"
-	f, err := os.Open(fileName)
-	chk(err)
-	defer f.Close()
-	audio, sampleRate, numChans := GetAudio(f)
-	outSamples := GetOutSamples(&audio, sampleRate, numChans)
-	sample := &Sample{
-		SampleRate: sampleRate,
-		Audio:      &audio,
-		OutSamples: &outSamples,
-		Name:       fileName,
-	}
-	track := Track{
-		Sample:   sample,
-		Volume:   100,
-		Soundset: -1,
+
+	binary, lookErr := exec.LookPath("aplay")
+	if lookErr != nil {
+		panic(lookErr)
 	}
 
-	playTrack(track, out, stream)
+	args := []string{"aplay", "-fS16_BE", "-r44100", "-c1", fileName}
+
+	env := os.Environ()
+
+	execErr := syscall.Exec(binary, args, env)
+	if execErr != nil {
+		panic(execErr)
+	}
 }
 
 var playbackmtx sync.Mutex
@@ -600,8 +598,6 @@ func main() {
 	defer portaudio.Terminate()
 
 	out := make([]float32, FRAME_SIZE)
-	// out for our secondary audio device
-	headsetOut := make([]float32, FRAME_SIZE)
 	devs, err := portaudio.Devices()
 	if err != nil {
 		log.Printf("error enumerating devices: %v\n", err)
@@ -615,10 +611,7 @@ func main() {
 		return
 	}
 
-	headsetP := portaudio.HighLatencyParameters(nil, h.DefaultOutputDevice)
-	headsetP.FramesPerBuffer = len(headsetOut)
-	headsetP.Output.Channels = 1
-	headsetStream, err := portaudio.OpenStream(headsetP, &headsetOut)
+	h, err := portaudio.DefaultHostApi()
 
 	p := portaudio.HighLatencyParameters(nil, devs[i])
 	p.SampleRate = 44100.0
@@ -631,8 +624,6 @@ func main() {
 	chk(stream.Start())
 	defer stream.Stop()
 
-	h, err := portaudio.DefaultHostApi()
-	chk(err)
 	log.Printf("Default Output Device Info: %+v\n", h.DefaultOutputDevice)
 	log.Printf("Selected Output Device Info: %+v\n", devs[i])
 
@@ -702,7 +693,7 @@ func main() {
 	}(pins, GPIODoneChan)
 
 	// play intro sound on secondary audio device
-	playIntro(&headsetOut, headsetStream)
+	playIntro()
 
 	part2 := sampleSetConf.Get("SampleSetConfigs").(*toml.TomlTree)
 
